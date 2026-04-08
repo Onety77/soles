@@ -43,9 +43,9 @@ const X_COMMUNITY_LINK      = "https://x.com/i/communities/YourCommunityID";
 // 10 pts = $1. Engagement (likes, comments, views) boosts passive income.
 const POINTS_TO_DOLLAR      = 10;
 const MIN_PAYOUT_DOLLARS    = 5;
-const PAYOUT_COOLDOWN_HOURS = 12;
+const PAYOUT_COOLDOWN_HOURS = 6;
 // $SOLES Contract Address — visible on site
-const SOLES_CA = "PASTE_YOUR_CONTRACT_ADDRESS_HERE"; // ← replace this with actual CA
+const SOLES_CA = "Coming Soon..."; // ← replace this with actual CA
 
 // ─── Social Platforms ─────────────────────────────────────────────────────────
 const SOCIAL_PLATFORMS = [
