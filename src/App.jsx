@@ -39,9 +39,13 @@ const storage       = getStorage(firebaseApp);
 const TELEGRAM_VERIFY_LINK  = "https://t.me/YourBotHandleHere";
 const X_PROFILE_LINK        = "https://x.com/SolesBrand";
 const X_COMMUNITY_LINK      = "https://x.com/i/communities/YourCommunityID";
-const POINTS_TO_DOLLAR      = 100;
-const MIN_PAYOUT_DOLLARS    = 10;
+// New earnings model: post once, earn forever via engagement
+// 10 pts = $1. Engagement (likes, comments, views) boosts passive income.
+const POINTS_TO_DOLLAR      = 10;
+const MIN_PAYOUT_DOLLARS    = 5;
 const PAYOUT_COOLDOWN_HOURS = 12;
+// $SOLES Contract Address — visible on site
+const SOLES_CA = "PASTE_YOUR_CONTRACT_ADDRESS_HERE"; // ← replace this with actual CA
 
 // ─── Social Platforms ─────────────────────────────────────────────────────────
 const SOCIAL_PLATFORMS = [
@@ -61,76 +65,6 @@ const ROW_CFG  = [
 ];
 const TILE_W = [0.75,0.85,0.7,0.8,0.9,0.72,0.82,0.78];
 
-// ─── Merged Firestore Rules (copy to Firebase Console) ───────────────────────
-/*
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /river_leaderboard/{doc} {
-      allow read: if true;
-      allow create: if request.resource.data.username is string
-        && request.resource.data.username.size() >= 1
-        && request.resource.data.username.size() <= 20
-        && request.resource.data.score is number
-        && request.resource.data.distance is number;
-      allow update, delete: if false;
-    }
-    match /community_posts/{doc} {
-      allow read: if true;
-      allow create: if request.auth != null
-        && request.resource.data.thesis is string
-        && request.resource.data.thesis.size() >= 20
-        && request.resource.data.thesis.size() <= 500;
-      allow update: if request.auth != null;
-      allow delete: if false;
-    }
-    match /articles/{doc}  { allow read: if true; allow write: if false; }
-    match /tracker/{doc}   { allow read: if true; allow write: if false; }
-    match /backtest_user77/{doc} { allow read, write, delete: if true; }
-    match /backtest_user2/{doc}  { allow read, write, delete: if true; }
-    match /backtest_user3/{doc}  { allow read, write, delete: if true; }
-    match /users/{uid} {
-      allow read: if true;
-      allow create: if request.auth.uid == uid
-        && request.resource.data.username is string
-        && request.resource.data.username.size() >= 1
-        && request.resource.data.username.size() <= 24;
-      allow update: if request.auth.uid == uid
-        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    match /posts/{postId} {
-      allow read: if true;
-      allow create: if request.auth != null
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['creator','admin'];
-      allow update: if request.auth.uid == resource.data.creatorId
-        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow delete: if request.auth.uid == resource.data.creatorId
-        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    match /comments/{doc} {
-      allow read: if true;
-      allow create: if request.auth != null
-        && request.resource.data.text is string
-        && request.resource.data.text.size() >= 1
-        && request.resource.data.text.size() <= 400;
-      allow update: if request.auth != null;
-      allow delete: if request.auth.uid == resource.data.uid
-        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    match /daily/{docId} {
-      allow read: if true;
-      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    match /follows/{followId} { allow read: if true; allow write: if request.auth != null; }
-    match /payoutRequests/{reqId} {
-      allow create: if request.auth != null;
-      allow read, update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    match /{document=**} { allow read, write: if false; }
-  }
-}
-*/
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const GlobalStyles = () => (
@@ -166,7 +100,7 @@ const GlobalStyles = () => (
     .nav{position:sticky;top:0;z-index:100;background:var(--glass);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 24px;height:62px;display:flex;align-items:center;justify-content:space-between;}
     .nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none;}
     .nav-logo-img{height:32px;}
-    .nav-logo-text{font-family:var(--fd);font-size:1.6rem;font-weight:700;color:var(--soil);letter-spacing:.02em;}
+    .nav-logo-text{font-family:var(--fs);font-size:1.6rem;font-weight:700;color:var(--soil);letter-spacing:.02em;}
     .nav-center{display:flex;align-items:center;gap:4px;}
     .nav-link{background:none;border:none;cursor:pointer;font-family:var(--fb);font-size:.76rem;font-weight:500;color:var(--text-muted);padding:6px 12px;border-radius:8px;transition:all .2s;}
     .nav-link:hover{color:var(--soil);background:var(--sand-light);}
@@ -198,7 +132,8 @@ const GlobalStyles = () => (
 
     /* ── HERO ────────────────────────────────────────── */
     .hero{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--dark);}
-    .hero-bg{position:absolute;inset:-8%;background:radial-gradient(ellipse 80% 60% at 25% 55%,rgba(212,132,90,.18) 0%,transparent 58%),radial-gradient(ellipse 55% 70% at 78% 25%,rgba(196,154,108,.1) 0%,transparent 55%),linear-gradient(155deg,#0E0702 0%,#2C1810 45%,#0E0702 100%);transition:transform .1s ease-out;}
+    .hero-bg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;opacity:.18;filter:saturate(.7);z-index:0;}
+    .hero-bg{position:absolute;inset:-8%;background:radial-gradient(ellipse 80% 60% at 25% 55%,rgba(212,132,90,.22) 0%,transparent 58%),radial-gradient(ellipse 55% 70% at 78% 25%,rgba(196,154,108,.12) 0%,transparent 55%),linear-gradient(155deg,rgba(14,7,2,.82) 0%,rgba(44,24,16,.72) 45%,rgba(14,7,2,.88) 100%);transition:transform .1s ease-out;z-index:1;}
     .hero-grain{position:absolute;inset:0;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:160px;}
     .hero-ring{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
     .hero-ring span{position:absolute;border-radius:50%;border:1px solid rgba(232,201,160,.06);top:50%;left:50%;transform:translate(-50%,-50%);animation:expandR 7s ease-out infinite;}
@@ -322,6 +257,15 @@ const GlobalStyles = () => (
     .btn-outline:hover{background:var(--sand-light);}
     .btn-danger{padding:8px 18px;border-radius:40px;border:none;cursor:pointer;font-family:var(--fb);font-size:.76rem;font-weight:500;background:#FDE8D8;color:var(--red);transition:all .2s;}
     .btn-danger:hover{background:#fbd0bc;}
+
+    /* ── SEARCH ──────────────────────────────────────── */
+    .search-wrap{padding:0 20px 16px;position:relative;max-width:520px;}
+    .search-input{width:100%;padding:11px 16px 11px 42px;border-radius:40px;border:1.5px solid var(--border);background:var(--white);font-family:var(--fb);font-size:.84rem;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;}
+    .search-input:focus{border-color:var(--sand-dark);box-shadow:0 0 0 3px rgba(196,154,108,.12);}
+    .search-icon{position:absolute;left:34px;top:50%;transform:translateY(-50%);font-size:.9rem;pointer-events:none;color:var(--text-muted);}
+    .search-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.8rem;padding:4px 8px;border-radius:20px;}
+    .search-clear:hover{background:var(--sand-light);}
+    .search-results-label{padding:0 20px 10px;font-size:.74rem;color:var(--text-muted);font-weight:500;}
 
     /* ── FEED ────────────────────────────────────────── */
     .feed-page{max-width:1200px;margin:0 auto;width:100%;}
@@ -544,8 +488,71 @@ const GlobalStyles = () => (
     .footer-link:hover{color:var(--sand);}
     .footer-copy{font-size:.66rem;color:var(--text-muted);opacity:.4;}
 
+    /* ── CA TICKER BAR ───────────────────────────────── */
+    .ca-bar{background:linear-gradient(90deg,var(--soil),#3D2510,var(--soil));padding:10px 0;overflow:hidden;position:relative;}
+    .ca-bar::before,.ca-bar::after{content:'';position:absolute;top:0;bottom:0;width:60px;z-index:2;}
+    .ca-bar::before{left:0;background:linear-gradient(to right,var(--soil),transparent);}
+    .ca-bar::after{right:0;background:linear-gradient(to left,var(--soil),transparent);}
+    .ca-ticker{display:flex;width:max-content;animation:caScroll 30s linear infinite;align-items:center;gap:0;}
+    .ca-ticker:hover{animation-play-state:paused;}
+    @keyframes caScroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+    .ca-ticker-item{display:flex;align-items:center;gap:10px;padding:0 32px;white-space:nowrap;cursor:pointer;}
+    .ca-ticker-label{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--sand-dark);opacity:.7;font-weight:600;}
+    .ca-ticker-addr{font-family:monospace;font-size:.78rem;color:var(--sand);background:rgba(255,255,255,.06);padding:3px 10px;border-radius:6px;transition:background .2s;}
+    .ca-ticker-item:hover .ca-ticker-addr{background:rgba(255,255,255,.14);}
+    .ca-ticker-copy{font-size:.64rem;color:var(--accent);opacity:.8;}
+    .ca-ticker-sep{width:1px;height:14px;background:rgba(232,201,160,.15);margin:0 8px;}
+
+    /* ── PASSIVE INCOME SECTION ──────────────────────── */
+    .passive-section{padding:80px 24px;background:var(--cream);position:relative;overflow:hidden;}
+    .passive-inner{max-width:1000px;margin:0 auto;}
+    .passive-eyebrow{text-align:center;font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;font-weight:500;}
+    .passive-title{text-align:center;font-family:var(--fd);font-size:clamp(1.8rem,5vw,3.5rem);color:var(--soil);font-weight:400;margin-bottom:14px;line-height:1.15;}
+    .passive-title em{font-style:italic;color:var(--accent);}
+    .passive-sub{text-align:center;font-size:.9rem;color:var(--text-muted);max-width:520px;margin:0 auto 48px;line-height:1.7;}
+    .passive-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:40px;}
+    .passive-card{background:var(--white);border-radius:18px;padding:24px 20px;box-shadow:var(--shadow);text-align:center;position:relative;overflow:hidden;border-top:3px solid var(--accent);}
+    .passive-card-icon{font-size:2rem;margin-bottom:10px;}
+    .passive-card-pts{font-family:var(--fi);font-size:2rem;color:var(--accent);letter-spacing:.04em;}
+    .passive-card-pts-label{font-size:.68rem;color:var(--text-muted);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase;}
+    .passive-card-title{font-size:.88rem;font-weight:600;color:var(--soil);margin-bottom:4px;}
+    .passive-card-desc{font-size:.76rem;color:var(--text-muted);line-height:1.5;}
+    .passive-math{background:linear-gradient(135deg,var(--soil),var(--mid));border-radius:18px;padding:28px 32px;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;text-align:center;}
+    .pm-item{color:var(--sand-light);}
+    .pm-val{font-family:var(--fi);font-size:2rem;color:var(--sand);display:block;}
+    .pm-lbl{font-size:.68rem;opacity:.65;letter-spacing:.1em;text-transform:uppercase;}
+    .pm-eq{font-family:var(--fi);font-size:1.5rem;color:var(--sand-dark);opacity:.5;}
+
+    /* ── VERIFICATION REQUEST (profile) ──────────────── */
+    .verify-request-sheet{}
+    .verify-step{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border);}
+    .verify-step:last-child{border-bottom:none;}
+    .verify-step-num{width:26px;height:26px;border-radius:50%;background:var(--soil);color:var(--sand-light);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;margin-top:1px;}
+    .verify-step-body strong{display:block;font-size:.84rem;color:var(--soil);margin-bottom:3px;}
+    .verify-step-body span{font-size:.78rem;color:var(--text-muted);line-height:1.5;}
+    .vreq-status{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:.72rem;font-weight:600;margin-top:6px;}
+    .vreq-status.pending{background:#FEF3C7;color:#92400E;}
+    .vreq-status.reviewing{background:#DBEAFE;color:#1E40AF;}
+    .vreq-status.approved{background:#D1FAE5;color:#065F46;}
+    .vreq-status.rejected{background:#FEE2E2;color:#991B1B;}
+
+    /* ── ADMIN VERIFICATION REQUESTS ────────────────── */
+    .vreq-card{background:var(--white);border-radius:14px;padding:18px;margin-bottom:12px;box-shadow:var(--shadow);border-left:4px solid var(--border);}
+    .vreq-card.pending{border-left-color:#F59E0B;}
+    .vreq-card.reviewing{border-left-color:#3B82F6;}
+    .vreq-card.approved{border-left-color:#10B981;}
+    .vreq-card.rejected{border-left-color:#EF4444;}
+    .vreq-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;}
+    .vreq-user{font-weight:600;font-size:.86rem;color:var(--soil);}
+    .vreq-time{font-size:.7rem;color:var(--text-muted);}
+    .vreq-field{margin-bottom:8px;}
+    .vreq-field-label{font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);font-weight:600;margin-bottom:2px;}
+    .vreq-field-val{font-size:.8rem;color:var(--text);word-break:break-all;}
+    .vreq-selfie{width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-top:6px;cursor:pointer;}
+    .vreq-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+
     /* CONTRACT_ADDRESS_SECTION */
-    .ca-section{display:none;background:var(--soil);padding:14px 24px;text-align:center;}
+    .ca-section{background:var(--soil);padding:14px 24px;text-align:center;}
     .ca-addr{font-family:monospace;font-size:.8rem;color:var(--sand);background:rgba(255,255,255,.08);padding:7px 16px;border-radius:8px;cursor:pointer;transition:background .2s;display:inline-block;word-break:break-all;}
     .ca-addr:hover{background:rgba(255,255,255,.14);}
   `}</style>
@@ -679,8 +686,198 @@ function GalleryMosaic() {
   );
 }
 
+// ─── Passive Income Section ───────────────────────────────────────────────────
+function PassiveIncomeSection({ onAuth }) {
+  const ref = useFadeIn();
+  return (
+    <div className="passive-section" ref={ref}>
+      <div className="passive-inner">
+        <div className="passive-eyebrow">The $SOLES Economy</div>
+        <div className="passive-title">Post once.<br /><em>Earn forever.</em></div>
+        <div className="passive-sub">
+          SOLES is the first platform where foot content creators earn passive blockchain income — forever. Every post you make keeps earning as long as people engage with it. The fetish community finally has its own economy.
+        </div>
+        <div className="passive-grid">
+          {[
+            { icon:"🦶", pts:"1 pt",  label:"per like",    title:"Likes",    desc:"Every like on any of your posts adds to your balance. Old posts earn just like new ones." },
+            { icon:"💬", pts:"2 pts", label:"per comment", title:"Comments", desc:"Comments signal deep engagement. They earn you double — because real connection matters." },
+            { icon:"👁",  pts:"0.1 pt",label:"per view",   title:"Views",    desc:"Even passive scrollers contribute. Your content earns while you sleep, travel, or post more." },
+            { icon:"🪙", pts:"10 pts",label:"= $1.00",     title:"$SOLES",   desc:"10 engagement points equals one dollar, powered by the $SOLES token on-chain. No middleman." },
+          ].map(c => (
+            <div key={c.title} className="passive-card">
+              <div className="passive-card-icon">{c.icon}</div>
+              <div className="passive-card-pts-label">{c.label}</div>
+              <div className="passive-card-pts">{c.pts}</div>
+              <div className="passive-card-title">{c.title}</div>
+              <div className="passive-card-desc">{c.desc}</div>
+            </div>
+          ))}
+        </div>
+        <div className="passive-math">
+          <div className="pm-item"><span className="pm-val">1</span><span className="pm-lbl">Post Published</span></div>
+          <div className="pm-eq">+</div>
+          <div className="pm-item"><span className="pm-val">∞</span><span className="pm-lbl">Engagement Over Time</span></div>
+          <div className="pm-eq">=</div>
+          <div className="pm-item"><span className="pm-val">$$$</span><span className="pm-lbl">Passive Income Forever</span></div>
+        </div>
+        <div style={{textAlign:"center",marginTop:32}}>
+          <button className="btn-hp" onClick={()=>onAuth("signup")} style={{padding:"13px 36px"}}>Become a Creator</button>
+          <div style={{fontSize:".74rem",color:"var(--text-muted)",marginTop:12}}>Powered by <strong style={{color:"var(--accent)"}}>$SOLES</strong> · CA: <span style={{fontFamily:"monospace",fontSize:".72rem"}}>{SOLES_CA}</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Verification Request Sheet ───────────────────────────────────────────────
+function VerificationRequestSheet({ currentUser, userData, onClose, showToast }) {
+  const [form, setForm] = useState({
+    xHandle:    "",
+    xAccountAge:"",
+    altSocial:  "",
+    selfieFile: null,
+    selfiePreview: null,
+    notes:      "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted,  setSubmitted]  = useState(userData?.verificationStatus === "pending" || userData?.verificationStatus === "reviewing");
+
+  function sf(k,v) { setForm(p=>({...p,[k]:v})); }
+
+  function handleSelfie(f) {
+    if (!f || !f.type.startsWith("image/")) { showToast("Image only","error"); return; }
+    if (f.size > 8 * 1024 * 1024) { showToast("Max 8MB","error"); return; }
+    sf("selfieFile", f);
+    sf("selfiePreview", URL.createObjectURL(f));
+  }
+
+  async function submit() {
+    if (!form.selfieFile) { showToast("Selfie with $SOLES sign is required","error"); return; }
+    if (!form.xHandle && !form.altSocial) { showToast("Provide your X handle or alternative social","error"); return; }
+    setSubmitting(true);
+    try {
+      // Upload selfie
+      const sRef = ref(storage, `verifications/${currentUser.uid}/${Date.now()}_selfie.jpg`);
+      await uploadBytes(sRef, form.selfieFile);
+      const selfieURL = await getDownloadURL(sRef);
+
+      await addDoc(collection(db,"verificationRequests"), {
+        uid:         currentUser.uid,
+        username:    userData?.username || "",
+        displayName: userData?.displayName || "",
+        email:       userData?.email || "",
+        xHandle:     form.xHandle.trim(),
+        xAccountAge: form.xAccountAge.trim(),
+        altSocial:   form.altSocial.trim(),
+        selfieURL,
+        notes:       form.notes.trim(),
+        status:      "pending",
+        submittedAt: serverTimestamp(),
+      });
+
+      await updateDoc(doc(db,"users",currentUser.uid), {
+        verificationStatus: "pending",
+      });
+
+      showToast("Verification request submitted! We'll review it shortly.","success");
+      setSubmitted(true);
+    } catch(e) {
+      console.error("Verification submit error:", e);
+      showToast("Submit failed — try again","error");
+    }
+    setSubmitting(false);
+  }
+
+  const status = userData?.verificationStatus;
+
+  return (
+    <div className="sheet-overlay" onClick={onClose}>
+      <div className="sheet-box" onClick={e=>e.stopPropagation()}>
+        <div className="sheet-handle"/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+          <div className="sheet-title" style={{marginBottom:0}}>Get Verified</div>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Already submitted */}
+        {submitted ? (
+          <div style={{textAlign:"center",padding:"24px 0"}}>
+            <div style={{fontSize:"2.5rem",marginBottom:12}}>
+              {status==="reviewing" ? "🔍" : status==="approved" ? "✅" : status==="rejected" ? "❌" : "⏳"}
+            </div>
+            <div style={{fontFamily:"var(--fd)",fontSize:"1.3rem",color:"var(--soil)",marginBottom:8}}>
+              {status==="reviewing" ? "Under Review" : status==="approved" ? "Verified!" : status==="rejected" ? "Not Approved" : "Request Submitted"}
+            </div>
+            <div className={`vreq-status ${status||"pending"}`} style={{display:"inline-flex",margin:"0 auto 16px"}}>
+              {status||"pending"}
+            </div>
+            <p style={{fontSize:".82rem",color:"var(--text-muted)",lineHeight:1.6}}>
+              {status==="reviewing" ? "We're reviewing your submission. You'll be notified once it's processed." :
+               status==="approved" ? "You're verified! You can now earn from all your posts." :
+               status==="rejected" ? "Your request was not approved. Please contact us for more details." :
+               "Your verification request is in the queue. This usually takes 24-48 hours."}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Steps explanation */}
+            <div style={{marginBottom:20}}>
+              {[
+                ["1","X Account","Share your active X (Twitter) handle — must be at least 3 months old."],
+                ["2","Follow & Retweet","Follow @SolesBrand on X and retweet our pinned introduction post using the same account."],
+                ["3","No X? No problem","If you don't have X, provide your main active social media account instead."],
+                ["4","Selfie","Take a selfie with your face visible holding a handwritten paper that says \"$SOLES\". Upload it below."],
+              ].map(([n,t,d]) => (
+                <div key={n} className="verify-step">
+                  <div className="verify-step-num">{n}</div>
+                  <div className="verify-step-body"><strong>{t}</strong><span>{d}</span></div>
+                </div>
+              ))}
+            </div>
+
+            <div className="fg">
+              <label className="fl">Your X (Twitter) Handle</label>
+              <input className="fi" placeholder="@yourusername" value={form.xHandle} onChange={e=>sf("xHandle",e.target.value)} />
+            </div>
+            <div className="fg">
+              <label className="fl">X Account Age (approx.)</label>
+              <input className="fi" placeholder="e.g. Created Jan 2022" value={form.xAccountAge} onChange={e=>sf("xAccountAge",e.target.value)} />
+            </div>
+            <div className="fg">
+              <label className="fl">Alternative Social (if no X)</label>
+              <input className="fi" placeholder="Instagram, Reddit, etc." value={form.altSocial} onChange={e=>sf("altSocial",e.target.value)} />
+            </div>
+            <div className="fg">
+              <label className="fl">Selfie with "$SOLES" sign *</label>
+              {form.selfiePreview ? (
+                <div style={{position:"relative",marginBottom:8}}>
+                  <img src={form.selfiePreview} alt="" style={{width:"100%",maxHeight:220,objectFit:"cover",borderRadius:10}}/>
+                  <button className="upload-preview-remove" onClick={()=>sf("selfieFile",null)||sf("selfiePreview",null)}>✕</button>
+                </div>
+              ) : (
+                <div className="upload-zone" style={{padding:"20px"}} onClick={()=>document.getElementById("selfie-input").click()}>
+                  <div style={{fontSize:"1.6rem",marginBottom:6}}>🤳</div>
+                  <div style={{fontSize:".8rem",color:"var(--text-muted)"}}>Click to upload selfie holding "$SOLES" sign</div>
+                  <input id="selfie-input" type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleSelfie(e.target.files[0])}/>
+                </div>
+              )}
+            </div>
+            <div className="fg">
+              <label className="fl">Additional Notes (optional)</label>
+              <textarea className="fi" placeholder="Anything else you'd like us to know…" value={form.notes} onChange={e=>sf("notes",e.target.value)} rows={2} style={{resize:"vertical"}}/>
+            </div>
+            <button className="btn-primary" style={{width:"100%"}} onClick={submit} disabled={submitting}>
+              {submitting ? <span className="spin-inline"/> : "Submit Verification Request"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Landing Page ─────────────────────────────────────────────────────────────
-function LandingPage({ onAuth, onNavigate }) {
+function LandingPage({ onAuth, onNavigate, currentUser }) {
   const bgRef   = useParallax();
   const hiwRef  = useFadeIn();
   const spotRef = useFadeIn();
@@ -692,6 +889,7 @@ function LandingPage({ onAuth, onNavigate }) {
     <div className="page-fade">
       {/* HERO */}
       <div className="hero">
+        <img src="bg.jpg" className="hero-bg-img" alt="" onError={e=>{e.target.style.display="none";}} />
         <div className="hero-bg" ref={bgRef} />
         <div className="hero-grain" />
         <div className="hero-ring"><span/><span/><span/></div>
@@ -703,8 +901,17 @@ function LandingPage({ onAuth, onNavigate }) {
           <h1 className="hero-headline">Where admirers<em>discover soles</em></h1>
           <p className="hero-sub">— and creators get paid for theirs —</p>
           <div className="hero-ctas">
-            <button className="btn-hp" onClick={() => onAuth("signup")}>Join the Community</button>
-            <button className="btn-hg" onClick={() => onNavigate("explore")}>Browse Soles</button>
+            {currentUser ? (
+              <>
+                <button className="btn-hp" onClick={() => onNavigate("explore")}>Browse Soles →</button>
+                <button className="btn-hg" onClick={() => onNavigate("daily")}>Daily Soles</button>
+              </>
+            ) : (
+              <>
+                <button className="btn-hp" onClick={() => onAuth("signup")}>Join the Community</button>
+                <button className="btn-hg" onClick={() => onNavigate("explore")}>Browse Soles</button>
+              </>
+            )}
           </div>
         </div>
         <div className="hero-scroll"><div className="scroll-line"/><div className="scroll-txt">Scroll</div></div>
@@ -717,6 +924,25 @@ function LandingPage({ onAuth, onNavigate }) {
         </div>
       </div>
 
+      {/* CA TICKER BAR */}
+      {(() => {
+        const items = Array(8).fill(null);
+        return (
+          <div className="ca-bar">
+            <div className="ca-ticker">
+              {[...items,...items].map((_,i) => (
+                <div key={i} className="ca-ticker-item" onClick={()=>{navigator.clipboard.writeText(SOLES_CA);showToast&&showToast("CA copied! 📋","success");}}>
+                  <span className="ca-ticker-label">$SOLES CA</span>
+                  <span className="ca-ticker-addr">{SOLES_CA}</span>
+                  <span className="ca-ticker-copy">📋 copy</span>
+                  <span className="ca-ticker-sep"/>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* GALLERY MOSAIC */}
       <GalleryMosaic />
 
@@ -726,11 +952,14 @@ function LandingPage({ onAuth, onNavigate }) {
         <div className="hiw-title">Simple. Beautiful. <em>Rewarding.</em></div>
         <div className="hiw-grid">
           <TiltCard num="01" icon="👁️" title="Browse Freely"    desc="Every post on SOLES is free to view. No subscriptions, no paywalls — an open gallery of the world's most celebrated feet." />
-          <TiltCard num="02" icon="❤️" title="Like & Follow"    desc="Follow the Soles Stars you love. Like content, leave comments, build your feed around what actually moves you." />
-          <TiltCard num="03" icon="✨" title="Become a Creator" desc="Post your content, grow a following, and let your fanbase come to you. SOLES handles discovery — you handle the magic." />
-          <TiltCard num="04" icon="💸" title="Earn Real Money"  desc="Verified creators earn on every like, comment, and view. Request a payout every 12 hours. Your passion pays." />
+          <TiltCard num="02" icon="❤️" title="Like & Follow"    desc="Follow the Soles Stars you love. Like content, leave comments, and let your engagement fuel creator income." />
+          <TiltCard num="03" icon="🪙" title="Post Once, Earn Forever" desc="Every post you publish earns passive income forever. Engagement boosts your reward. Powered by $SOLES on-chain." />
+          <TiltCard num="04" icon="💸" title="Real Payouts"     desc="10 engagement points = $1. Verified creators cash out every 12 hours. No ceiling, no expiry." />
         </div>
       </div>
+
+      {/* PASSIVE INCOME SECTION */}
+      <PassiveIncomeSection onAuth={onAuth} />
 
       {/* CREATOR SPOTLIGHT */}
       <div className="spotlight" ref={spotRef}>
@@ -739,12 +968,13 @@ function LandingPage({ onAuth, onNavigate }) {
           <div className="spotlight-grid">
             <div>
               <div className="spot-eyebrow">For Creators</div>
-              <h2 className="spot-heading">Your feet.<br /><em>Your income.</em></h2>
-              <p className="spot-body">SOLES was built so creators actually benefit. You post, your audience engages, and the platform pays you directly — no brand deals, no follower minimum to start.</p>
+              <h2 className="spot-heading">Post once.<br /><em>Earn forever.</em></h2>
+              <p className="spot-body">Every post you make on SOLES is a permanent income source. The more your content gets loved — likes, comments, views — the more your earnings compound. No expiry. No limits.</p>
               <div className="perks">
-                {[["🪪","One-time verification","Quick Telegram process. Do it once, earn forever."],
-                  ["📊","Live earnings dashboard","See your points and balance update in real time."],
-                  ["⏱️","Payout every 12 hours","No month-long waits. Your money moves when you do."]
+                {[
+                  ["🪙","Blockchain-powered rewards","$SOLES token is the backbone of creator income. Your engagement translates to real on-chain value."],
+                  ["📊","Passive earnings dashboard","Every like earned while you sleep shows up in real time. Watch your balance grow."],
+                  ["⏱️","Payout every 12 hours","No month-long waits. Your money moves when you're ready."],
                 ].map(([ic,t,s]) => (
                   <div key={t} className="perk">
                     <div className="perk-icon">{ic}</div>
@@ -755,10 +985,22 @@ function LandingPage({ onAuth, onNavigate }) {
               <button className="btn-hp" style={{marginTop:28,padding:"12px 28px",fontSize:".78rem"}} onClick={()=>onAuth("signup")}>Start Earning →</button>
             </div>
             <div className="mock-cards">
-              {[["🦶","sole_star_one",2841],["🦶","pedicure_queen",1337]].map(([ic,nm,lk],i) => (
+              {[
+                {img:"sole.jpg", name:"sole_star_one", likes:2841, pts:"14.2K"},
+                {img:"pedi.jpg", name:"pedicure_queen", likes:1337, pts:"8.9K"},
+              ].map((c,i) => (
                 <div key={i} className="mock-card">
-                  <div className="mock-img">{ic}</div>
-                  <div className="mock-footer"><div className="mock-name">@{nm}</div><div className="mock-hearts">❤️ {lk.toLocaleString()}</div></div>
+                  <div className="mock-img" style={{position:"relative",padding:0}}>
+                    <img src={c.img} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
+                      onError={e=>{e.target.style.display="none"; e.target.parentElement.style.display="flex"; e.target.parentElement.style.alignItems="center"; e.target.parentElement.style.justifyContent="center"; e.target.parentElement.innerHTML+="🦶";}} />
+                  </div>
+                  <div className="mock-footer">
+                    <div>
+                      <div className="mock-name">@{c.name}</div>
+                      <div style={{fontSize:".68rem",color:"var(--accent)",marginTop:2}}>🪙 {c.pts} pts</div>
+                    </div>
+                    <div className="mock-hearts">❤️ {c.likes.toLocaleString()}</div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -783,18 +1025,21 @@ function LandingPage({ onAuth, onNavigate }) {
       <footer className="footer">
         <img src="logo.png" className="footer-logo-img" alt="SOLES" onError={e=>{e.target.style.display="none";}} />
         <div className="footer-tagline">We just like feet..</div>
-        {/* CONTRACT_ADDRESS_SECTION — remove display:none below and uncomment JSX when launching coin */}
-        { <div className="ca-section" style={{display:"block"}}><div style={{fontSize:".65rem",letterSpacing:".2em",textTransform:"uppercase",color:"var(--sand-dark)",marginBottom:5}}>$SOLES Contract Address</div><div className="ca-addr" onClick={()=>navigator.clipboard.writeText("PASTE_CA_HERE").then(()=>alert("Copied!"))}>Coming Soon..</div></div> }
-        
+        {/* CONTRACT_ADDRESS_SECTION */}
+        <div className="ca-section" style={{marginBottom:18,borderRadius:10,display:"inline-block",padding:"10px 20px"}}>
+          <div style={{fontSize:".62rem",letterSpacing:".2em",textTransform:"uppercase",color:"var(--sand-dark)",marginBottom:5,fontWeight:600}}>$SOLES Contract Address</div>
+          <div className="ca-addr" onClick={()=>navigator.clipboard.writeText(SOLES_CA).then(()=>alert("CA Copied!"))}>
+            {SOLES_CA}
+          </div>
+          <div style={{fontSize:".62rem",color:"var(--sand-dark)",marginTop:4,opacity:.6}}>Click to copy · Verify on DEX Screener</div>
+        </div>
         <div className="footer-social">
           <a href={X_PROFILE_LINK}       target="_blank" rel="noreferrer" className="soc-btn">𝕏</a>
           <a href={X_COMMUNITY_LINK}     target="_blank" rel="noreferrer" className="soc-btn">🫂</a>
-          <a href={TELEGRAM_VERIFY_LINK} target="_blank" rel="noreferrer" className="soc-btn">✈️</a>
         </div>
         <div className="footer-links">
           <a href={X_PROFILE_LINK}       target="_blank" rel="noreferrer" className="footer-link">X Profile</a>
           <a href={X_COMMUNITY_LINK}     target="_blank" rel="noreferrer" className="footer-link">X Community</a>
-          <a href={TELEGRAM_VERIFY_LINK} target="_blank" rel="noreferrer" className="footer-link">Telegram</a>
         </div>
         <div className="footer-copy">© {new Date().getFullYear()} SOLES · We just like feet..</div>
       </footer>
@@ -845,15 +1090,22 @@ function PostModal({ post, currentUser, onClose, onLike, onProfileClick, showToa
   const commentsEndRef        = useRef();
   const liked = currentUser && post.likes?.includes(currentUser.uid);
 
-  // live comment listener
+  // live comment listener — no orderBy to avoid requiring a composite index.
+  // We sort client-side by createdAt millis instead.
   useEffect(() => {
     const q = query(
       collection(db,"comments"),
-      where("postId","==",post.id),
-      orderBy("createdAt","asc")
+      where("postId","==",post.id)
     );
     const unsub = onSnapshot(q, snap => {
-      setComments(snap.docs.map(d => ({id:d.id,...d.data()})));
+      const all = snap.docs.map(d => ({id:d.id,...d.data()}));
+      // sort ascending by createdAt (Timestamp or null for brand-new optimistic docs)
+      all.sort((a,b) => {
+        const ta = a.createdAt?.toMillis?.() ?? Date.now();
+        const tb = b.createdAt?.toMillis?.() ?? Date.now();
+        return ta - tb;
+      });
+      setComments(all);
       setLoadingComments(false);
     }, err => {
       console.error("Comment listener error:", err);
@@ -1348,6 +1600,7 @@ function ProfilePage({ targetUid, currentUser, userData: cud, showToast, onNavig
   const [activeTab, setActiveTab] = useState("posts"); // posts | studio (own creator)
   const [openPost,  setOpenPost]  = useState(null);
   const [editOpen,  setEditOpen]  = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   const isOwn     = currentUser?.uid === targetUid;
   const isCreator = profile?.role === "creator" || profile?.role === "admin";
@@ -1360,9 +1613,16 @@ function ProfilePage({ targetUid, currentUser, userData: cud, showToast, onNavig
       const prof = {id:snap.id, ...snap.data()};
       setProfile(prof);
 
-      const q = query(collection(db,"posts"), where("creatorId","==",targetUid), orderBy("createdAt","desc"));
+      const q = query(collection(db,"posts"), where("creatorId","==",targetUid));
       const psSnap = await getDocs(q);
-      setPosts(psSnap.docs.map(d=>({id:d.id,...d.data()})));
+      const allPosts = psSnap.docs.map(d=>({id:d.id,...d.data()}));
+      // sort client-side to avoid requiring composite index
+      allPosts.sort((a,b)=>{
+        const ta = a.createdAt?.toMillis?.() ?? 0;
+        const tb = b.createdAt?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
+      setPosts(allPosts);
 
       if (currentUser && !isOwn) {
         const fSnap = await getDoc(doc(db,"follows",`${currentUser.uid}_${targetUid}`));
@@ -1385,20 +1645,35 @@ function ProfilePage({ targetUid, currentUser, userData: cud, showToast, onNavig
     return unsub;
   }, [targetUid]);
 
+  const [followLoading, setFollowLoading] = useState(false);
+
   async function toggleFollow() {
     if (!currentUser) { showToast("Sign in to follow","error"); return; }
+    if (followLoading) return; // prevent double-tap
+    setFollowLoading(true);
     const key = `${currentUser.uid}_${targetUid}`;
-    if (following) {
-      await deleteDoc(doc(db,"follows",key));
-      await updateDoc(doc(db,"users",targetUid),   {followersCount: increment(-1)});
-      await updateDoc(doc(db,"users",currentUser.uid), {followingCount: increment(-1)});
-      setFollowing(false);
-    } else {
-      await setDoc(doc(db,"follows",key), {followerId:currentUser.uid, followingId:targetUid, createdAt:serverTimestamp()});
-      await updateDoc(doc(db,"users",targetUid),   {followersCount: increment(1)});
-      await updateDoc(doc(db,"users",currentUser.uid), {followingCount: increment(1)});
-      setFollowing(true);
+    try {
+      if (following) {
+        await deleteDoc(doc(db,"follows",key));
+        // update counts in one batch — profile listener will pick this up
+        await updateDoc(doc(db,"users",targetUid),       {followersCount: increment(-1)});
+        await updateDoc(doc(db,"users",currentUser.uid), {followingCount: increment(-1)});
+        setFollowing(false);
+      } else {
+        await setDoc(doc(db,"follows",key), {
+          followerId:  currentUser.uid,
+          followingId: targetUid,
+          createdAt:   serverTimestamp(),
+        });
+        await updateDoc(doc(db,"users",targetUid),       {followersCount: increment(1)});
+        await updateDoc(doc(db,"users",currentUser.uid), {followingCount: increment(1)});
+        setFollowing(true);
+      }
+    } catch(e) {
+      console.error("Follow error:", e);
+      showToast("Failed to update follow","error");
     }
+    setFollowLoading(false);
   }
 
   async function handleLike(post) {
@@ -1484,12 +1759,17 @@ function ProfilePage({ targetUid, currentUser, userData: cud, showToast, onNavig
             <>
               <button className="follow-btn fb-ghost" style={{border:"1.5px solid rgba(232,201,160,.38)"}} onClick={()=>setEditOpen(true)}>Edit Profile</button>
               {isCreator && !profile.verified && (
-                <a href={TELEGRAM_VERIFY_LINK} target="_blank" rel="noreferrer" className="vcta">Get Verified →</a>
+                <button className="vcta" onClick={()=>setVerifyOpen(true)}>Get Verified →</button>
               )}
             </>
           ) : (
-            <button className={`follow-btn ${following?"fb-ghost":"fb-fill"}`} onClick={toggleFollow}>
-              {following ? "Following" : "Follow"}
+            <button
+              className={`follow-btn ${following?"fb-ghost":"fb-fill"}`}
+              onClick={toggleFollow}
+              disabled={followLoading}
+              style={{opacity:followLoading?0.6:1}}
+            >
+              {followLoading ? "…" : following ? "Following" : "Follow"}
             </button>
           )}
         </div>
@@ -1546,6 +1826,16 @@ function ProfilePage({ targetUid, currentUser, userData: cud, showToast, onNavig
           onClose={()=>setOpenPost(null)}
           onLike={handleLike}
           onProfileClick={onProfileClick}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Verification request sheet */}
+      {verifyOpen && currentUser && (
+        <VerificationRequestSheet
+          currentUser={currentUser}
+          userData={profile}
+          onClose={()=>setVerifyOpen(false)}
           showToast={showToast}
         />
       )}
@@ -1612,10 +1902,24 @@ function CreatorStudio({ currentUser, userData, showToast }) {
         <div className="verify-banner">
           <span style={{fontSize:"1.4rem"}}>🪪</span>
           <div style={{flex:1}}>
-            <strong style={{fontSize:".85rem",color:"var(--soil)",display:"block"}}>You're not verified yet</strong>
-            <span style={{fontSize:".76rem",color:"var(--text-muted)"}}>Verify through our Telegram bot to start earning on your posts.</span>
+            <strong style={{fontSize:".85rem",color:"var(--soil)",display:"block"}}>
+              {userData?.verificationStatus === "pending" ? "Verification Pending ⏳" :
+               userData?.verificationStatus === "reviewing" ? "Under Review 🔍" :
+               userData?.verificationStatus === "rejected" ? "Not Approved ❌" :
+               "You're not verified yet"}
+            </strong>
+            <span style={{fontSize:".76rem",color:"var(--text-muted)"}}>
+              {userData?.verificationStatus === "pending" ? "Your request is in the queue. We'll review it within 24-48 hours." :
+               userData?.verificationStatus === "reviewing" ? "We're reviewing your submission. Almost there!" :
+               userData?.verificationStatus === "rejected" ? "Your request was not approved. You may submit again." :
+               "Submit your verification request to start earning on your posts."}
+            </span>
           </div>
-          <a href={TELEGRAM_VERIFY_LINK} target="_blank" rel="noreferrer" className="vcta">Verify Now →</a>
+          {(!userData?.verificationStatus || userData?.verificationStatus === "rejected") && (
+            <button className="vcta" onClick={()=>document.dispatchEvent(new CustomEvent("openVerify"))}>
+              {userData?.verificationStatus === "rejected" ? "Reapply →" : "Get Verified →"}
+            </button>
+          )}
         </div>
       )}
 
@@ -1693,71 +1997,184 @@ function CreatorStudio({ currentUser, userData, showToast }) {
 
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 function AdminPanel({ showToast }) {
-  const [creators, setCreators]   = useState([]);
-  const [payouts,  setPayouts]    = useState([]);
-  const [dailyImg, setDailyImg]   = useState(null);
-  const [uploading,setUploading]  = useState(false);
-  const [tab,      setTab]        = useState("creators");
+  const [creators,    setCreators]    = useState([]);
+  const [payouts,     setPayouts]     = useState([]);
+  const [verReqs,     setVerReqs]     = useState([]);
+  const [dailyImg,    setDailyImg]    = useState(null);
+  const [uploading,   setUploading]   = useState(false);
+  const [tab,         setTab]         = useState("verifications");
+  const [expandedReq, setExpandedReq] = useState(null);
 
   useEffect(() => {
-    return onSnapshot(query(collection(db,"users"),where("role","==","creator")), snap =>
-      setCreators(snap.docs.map(d=>({id:d.id,...d.data()}))));
+    return onSnapshot(
+      query(collection(db,"users"), where("role","==","creator")),
+      snap => setCreators(snap.docs.map(d=>({id:d.id,...d.data()})))
+    );
   }, []);
+
   useEffect(() => {
-    return onSnapshot(query(collection(db,"payoutRequests"),orderBy("requestedAt","desc"),limit(30)), snap =>
-      setPayouts(snap.docs.map(d=>({id:d.id,...d.data()}))));
+    return onSnapshot(
+      query(collection(db,"payoutRequests"), orderBy("requestedAt","desc"), limit(40)),
+      snap => setPayouts(snap.docs.map(d=>({id:d.id,...d.data()})))
+    );
+  }, []);
+
+  useEffect(() => {
+    return onSnapshot(collection(db,"verificationRequests"), snap => {
+      const all = snap.docs.map(d=>({id:d.id,...d.data()}));
+      all.sort((a,b)=>(b.submittedAt?.toMillis?.()??0)-(a.submittedAt?.toMillis?.()??0));
+      setVerReqs(all);
+    });
   }, []);
 
   async function toggleVerified(u) {
-    await updateDoc(doc(db,"users",u.uid), {verified: !u.verified});
-    showToast(u.verified ? `${u.username} unverified` : `${u.username} ✓ verified`,"success");
+    await updateDoc(doc(db,"users",u.uid), {verified:!u.verified});
+    showToast(u.verified ? `${u.username} unverified` : `${u.username} verified`,"success");
   }
+
+  async function setReqStatus(req, status) {
+    await updateDoc(doc(db,"verificationRequests",req.id), {status, reviewedAt:serverTimestamp()});
+    await updateDoc(doc(db,"users",req.uid), {
+      verificationStatus: status,
+      verified: status === "approved",
+    });
+    showToast(`@${req.username} — ${status}`,"success");
+  }
+
   async function updPayout(id, status) {
     await updateDoc(doc(db,"payoutRequests",id), {status});
-    showToast(`Payout marked as ${status}`,"success");
+    showToast(`Payout ${status}`,"success");
   }
+
   async function uploadDaily() {
-    if (!dailyImg) return; setUploading(true);
+    if (!dailyImg) return;
+    setUploading(true);
     try {
       const ir  = ref(storage, `daily/${Date.now()}_${dailyImg.name}`);
       await uploadBytes(ir, dailyImg);
       const url = await getDownloadURL(ir);
       await addDoc(collection(db,"daily"), {imageURL:url, uploadedAt:serverTimestamp()});
       setDailyImg(null);
-      showToast("Uploaded to Daily Soles 🦶","success");
+      showToast("Uploaded 🦶","success");
     } catch { showToast("Upload failed","error"); }
     setUploading(false);
   }
 
+  const pendingVerCount = verReqs.filter(r=>r.status==="pending").length;
+  const pendingPayCount = payouts.filter(p=>p.status==="pending").length;
+  const Badge = ({count}) => count ? (
+    <span style={{background:"#E05A5A",color:"#fff",borderRadius:10,padding:"1px 7px",fontSize:".62rem",fontWeight:700,marginLeft:5}}>{count}</span>
+  ) : null;
+
   return (
     <div className="page-fade admin-page pb-mobile">
       <div className="admin-title">Admin Panel</div>
-      <div className="admin-sub">manage creators, payouts, daily content</div>
-      <div style={{display:"flex",gap:7,marginBottom:18,flexWrap:"wrap"}}>
-        {["creators","payouts","daily"].map(t => (
-          <button key={t} className={`fpill ${tab===t?"active":""}`} onClick={()=>setTab(t)}>
-            {t.charAt(0).toUpperCase()+t.slice(1)}
+      <div className="admin-sub">manage verifications, creators, payouts & daily content</div>
+
+      <div style={{display:"flex",gap:7,marginBottom:20,flexWrap:"wrap"}}>
+        {[
+          {id:"verifications", label:"Verifications"},
+          {id:"creators",      label:"Creators"},
+          {id:"payouts",       label:"Payouts"},
+          {id:"daily",         label:"Daily Soles"},
+        ].map(t=>(
+          <button key={t.id} className={`fpill ${tab===t.id?"active":""}`} onClick={()=>setTab(t.id)}>
+            {t.label}
+            {t.id==="verifications" && <Badge count={pendingVerCount}/>}
+            {t.id==="payouts"       && <Badge count={pendingPayCount}/>}
           </button>
         ))}
       </div>
 
+      {tab === "verifications" && (
+        <div>
+          <div style={{marginBottom:14,fontSize:".8rem",color:"var(--text-muted)"}}>
+            {verReqs.length} total · {pendingVerCount} pending
+          </div>
+          {verReqs.length === 0 && (
+            <div className="empty-state"><div className="empty-state-icon">🪪</div><div className="empty-state-text">No verification requests yet</div></div>
+          )}
+          {verReqs.map(req=>(
+            <div key={req.id} className={`vreq-card ${req.status}`}>
+              <div className="vreq-header">
+                <div>
+                  <div className="vreq-user">@{req.username} — {req.displayName}</div>
+                  <div className="vreq-time">{req.email} · {timeAgo(req.submittedAt)}</div>
+                </div>
+                <span className={`vreq-status ${req.status}`}>{req.status}</span>
+              </div>
+              {req.xHandle && (
+                <div className="vreq-field">
+                  <div className="vreq-field-label">X Handle</div>
+                  <div className="vreq-field-val">
+                    <a href={`https://x.com/${req.xHandle.replace("@","")}`} target="_blank" rel="noreferrer" style={{color:"var(--accent)"}}>{req.xHandle}</a>
+                    {req.xAccountAge && <span style={{color:"var(--text-muted)",fontSize:".74rem",marginLeft:8}}>· {req.xAccountAge}</span>}
+                  </div>
+                </div>
+              )}
+              {req.altSocial && (
+                <div className="vreq-field">
+                  <div className="vreq-field-label">Alternative Social</div>
+                  <div className="vreq-field-val">{req.altSocial}</div>
+                </div>
+              )}
+              {expandedReq === req.id ? (
+                <>
+                  {req.selfieURL && (
+                    <div className="vreq-field">
+                      <div className="vreq-field-label">Selfie with $SOLES</div>
+                      <img src={req.selfieURL} className="vreq-selfie" alt="selfie"
+                        onClick={()=>window.open(req.selfieURL,"_blank")}/>
+                    </div>
+                  )}
+                  {req.notes && (
+                    <div className="vreq-field">
+                      <div className="vreq-field-label">Notes</div>
+                      <div className="vreq-field-val">{req.notes}</div>
+                    </div>
+                  )}
+                  <button style={{fontSize:".74rem",background:"none",border:"none",color:"var(--text-muted)",cursor:"pointer",padding:0,marginTop:4}}
+                    onClick={()=>setExpandedReq(null)}>▲ Collapse</button>
+                </>
+              ) : (
+                <button style={{fontSize:".74rem",background:"none",border:"none",color:"var(--accent)",cursor:"pointer",padding:0,marginTop:4}}
+                  onClick={()=>setExpandedReq(req.id)}>▼ View selfie & details</button>
+              )}
+              {req.status !== "approved" && (
+                <div className="vreq-actions">
+                  <button className="tvbtn v" onClick={()=>setReqStatus(req,"approved")}>✓ Approve</button>
+                  <button className="tvbtn" style={{background:"#DBEAFE",color:"#1E40AF"}} onClick={()=>setReqStatus(req,"reviewing")}>🔍 Reviewing</button>
+                  {req.status !== "rejected" && (
+                    <button className="tvbtn u" onClick={()=>setReqStatus(req,"rejected")}>✕ Reject</button>
+                  )}
+                </div>
+              )}
+              {req.status === "approved" && (
+                <div style={{fontSize:".72rem",color:"var(--green)",marginTop:8,fontWeight:600}}>✓ Approved & verified</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {tab === "creators" && (
         <div className="scard">
-          <div className="scard-title">Creators ({creators.length})</div>
+          <div className="scard-title">All Creators ({creators.length})</div>
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th>Username</th><th>Email</th><th>Points</th><th>Posts</th><th>Verified</th></tr></thead>
+              <thead><tr><th>Username</th><th>Email</th><th>Points</th><th>Posts</th><th>Req.Status</th><th>Verified</th></tr></thead>
               <tbody>
-                {creators.map(c => (
+                {creators.map(c=>(
                   <tr key={c.id}>
                     <td><strong>@{c.username}</strong></td>
-                    <td style={{maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.email}</td>
+                    <td style={{maxWidth:130,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.email}</td>
                     <td>{(c.points||0).toFixed(0)}</td>
                     <td>{c.postsCount||0}</td>
-                    <td><button className={`tvbtn ${c.verified?"v":"u"}`} onClick={()=>toggleVerified(c)}>{c.verified ? "✓ Verified" : "Unverified"}</button></td>
+                    <td style={{fontSize:".7rem",color:"var(--text-muted)"}}>{c.verificationStatus||"—"}</td>
+                    <td><button className={`tvbtn ${c.verified?"v":"u"}`} onClick={()=>toggleVerified(c)}>{c.verified?"✓":"✕"}</button></td>
                   </tr>
                 ))}
-                {!creators.length && <tr><td colSpan={5} style={{textAlign:"center",color:"var(--text-muted)",padding:24}}>No creators yet</td></tr>}
+                {!creators.length && <tr><td colSpan={6} style={{textAlign:"center",color:"var(--text-muted)",padding:24}}>No creators yet</td></tr>}
               </tbody>
             </table>
           </div>
@@ -1771,14 +2188,14 @@ function AdminPanel({ showToast }) {
             <table className="admin-table">
               <thead><tr><th>Username</th><th>Amount</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
               <tbody>
-                {payouts.map(p => (
+                {payouts.map(p=>(
                   <tr key={p.id}>
                     <td>@{p.username}</td>
                     <td><strong>${p.amount}</strong></td>
                     <td>{timeAgo(p.requestedAt)}</td>
                     <td><span className={`tag-badge ${p.status==="paid"?"":"creator"}`}>{p.status}</span></td>
                     <td>
-                      {p.status === "pending" && (
+                      {p.status==="pending" && (
                         <div style={{display:"flex",gap:4}}>
                           <button className="tvbtn v" onClick={()=>updPayout(p.id,"paid")}>Pay</button>
                           <button className="tvbtn u" onClick={()=>updPayout(p.id,"rejected")}>Reject</button>
@@ -1799,11 +2216,11 @@ function AdminPanel({ showToast }) {
           <div className="scard-title">Upload Daily Sole</div>
           <div className="upload-zone" style={{marginBottom:14}} onClick={()=>document.getElementById("adm-f").click()}>
             <div style={{fontSize:"2rem",marginBottom:6}}>📸</div>
-            <div style={{fontSize:".82rem",color:"var(--text-muted)"}}>{dailyImg ? dailyImg.name : "Click to select image"}</div>
-            <input id="adm-f" type="file" accept="image/*" style={{display:"none"}} onChange={e=>setDailyImg(e.target.files[0])} />
+            <div style={{fontSize:".82rem",color:"var(--text-muted)"}}>{dailyImg?dailyImg.name:"Click to select image"}</div>
+            <input id="adm-f" type="file" accept="image/*" style={{display:"none"}} onChange={e=>setDailyImg(e.target.files[0])}/>
           </div>
           <button className="btn-primary" style={{width:"100%"}} onClick={uploadDaily} disabled={!dailyImg||uploading}>
-            {uploading ? <span className="spin-inline"/> : "Upload to Daily Soles"}
+            {uploading?<span className="spin-inline"/>:"Upload to Daily Soles"}
           </button>
         </div>
       )}
@@ -1849,11 +2266,16 @@ function DailySoles() {
 
 // ─── Main Feed ────────────────────────────────────────────────────────────────
 function MainFeed({ currentUser, userData, showToast, onProfileClick }) {
-  const [posts,    setPosts]    = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [filter,   setFilter]   = useState("latest");
-  const [openPost, setOpenPost] = useState(null);
+  const [posts,       setPosts]       = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [filter,      setFilter]      = useState("latest");
+  const [openPost,    setOpenPost]    = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState(null); // null = not searching
+  const [searching,   setSearching]   = useState(false);
+  const searchTimer = useRef(null);
 
+  // Live feed
   useEffect(() => {
     setLoading(true);
     const q = filter === "popular"
@@ -1868,6 +2290,35 @@ function MainFeed({ currentUser, userData, showToast, onProfileClick }) {
     });
     return unsub;
   }, [filter]);
+
+  // Search users by username / displayName
+  async function doSearch(q) {
+    if (!q.trim()) { setSearchResults(null); return; }
+    setSearching(true);
+    try {
+      // Search by username (lowercase prefix match)
+      const lower = q.toLowerCase().trim();
+      const snap  = await getDocs(collection(db,"users"));
+      const users = snap.docs
+        .map(d => ({id:d.id,...d.data()}))
+        .filter(u =>
+          (u.username||"").toLowerCase().includes(lower) ||
+          (u.displayName||"").toLowerCase().includes(lower)
+        )
+        .slice(0, 20);
+      setSearchResults(users);
+    } catch(e) {
+      console.error("Search error:", e);
+    }
+    setSearching(false);
+  }
+
+  function onSearchChange(val) {
+    setSearchQuery(val);
+    clearTimeout(searchTimer.current);
+    if (!val.trim()) { setSearchResults(null); return; }
+    searchTimer.current = setTimeout(() => doSearch(val), 400);
+  }
 
   async function handleLike(post) {
     if (!currentUser) { showToast("Sign in to like 🦶","error"); return; }
@@ -1898,24 +2349,85 @@ function MainFeed({ currentUser, userData, showToast, onProfileClick }) {
           <button className={`fpill ${filter==="popular"?"active":""}`} onClick={()=>setFilter("popular")}>Popular</button>
         </div>
       </div>
-      {loading
-        ? <div className="spinner" />
-        : posts.length === 0
-          ? <div className="empty-state"><div className="empty-state-icon">🦶</div><div className="empty-state-text">No posts yet — be first to post!</div></div>
-          : (
-            <div className="feed-grid">
-              {posts.map(post => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  currentUser={currentUser}
-                  onOpen={setOpenPost}
-                  onLike={handleLike}
-                  onProfileClick={onProfileClick}
-                />
+
+      {/* Search bar */}
+      <div className="search-wrap">
+        <span className="search-icon">🔍</span>
+        <input
+          className="search-input"
+          placeholder="Search creators by name or username…"
+          value={searchQuery}
+          onChange={e => onSearchChange(e.target.value)}
+        />
+        {searchQuery && (
+          <button className="search-clear" onClick={()=>{setSearchQuery("");setSearchResults(null);}}>✕</button>
+        )}
+      </div>
+
+      {/* Search results */}
+      {searchResults !== null && (
+        <>
+          <div className="search-results-label">
+            {searching ? "Searching…" : `${searchResults.length} creator${searchResults.length!==1?"s":""} found`}
+          </div>
+          {searchResults.length === 0 && !searching && (
+            <div className="empty-state" style={{padding:"30px 20px"}}>
+              <div className="empty-state-icon">🔍</div>
+              <div className="empty-state-text">No creators found for "{searchQuery}"</div>
+            </div>
+          )}
+          {searchResults.length > 0 && (
+            <div style={{padding:"0 20px 20px",display:"flex",flexDirection:"column",gap:10}}>
+              {searchResults.map(user => (
+                <div
+                  key={user.id}
+                  onClick={() => { onProfileClick(user.uid||user.id); setSearchQuery(""); setSearchResults(null); }}
+                  style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"var(--white)",borderRadius:14,cursor:"pointer",boxShadow:"var(--shadow)",transition:"transform .2s"}}
+                  onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"}
+                  onMouseLeave={e=>e.currentTarget.style.transform=""}
+                >
+                  <Avatar photoURL={user.photoURL} name={user.displayName} size={44} />
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:600,fontSize:".88rem",color:"var(--soil)",display:"flex",alignItems:"center",gap:6}}>
+                      {user.displayName}
+                      {user.verified && <span style={{fontSize:".68rem",color:"var(--accent)",background:"rgba(212,132,90,.12)",padding:"1px 7px",borderRadius:10}}>✓</span>}
+                    </div>
+                    <div style={{fontSize:".76rem",color:"var(--text-muted)"}}>@{user.username}</div>
+                    {user.bio && <div style={{fontSize:".74rem",color:"var(--text-muted)",marginTop:2,opacity:.8,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:260}}>{user.bio}</div>}
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontFamily:"var(--fi)",fontSize:"1rem",color:"var(--soil)"}}>{user.followersCount||0}</div>
+                    <div style={{fontSize:".62rem",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".06em"}}>followers</div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
+        </>
+      )}
+
+      {/* Normal feed — hidden while searching */}
+      {searchResults === null && (
+        loading
+          ? <div className="spinner" />
+          : posts.length === 0
+            ? <div className="empty-state"><div className="empty-state-icon">🦶</div><div className="empty-state-text">No posts yet — be first to post!</div></div>
+            : (
+              <div className="feed-grid">
+                {posts.map(post => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    currentUser={currentUser}
+                    onOpen={setOpenPost}
+                    onLike={handleLike}
+                    onProfileClick={onProfileClick}
+                  />
+                ))}
+              </div>
+            )
+      )}
+
       {openPost && (
         <PostModal
           post={openPost}
@@ -2012,7 +2524,7 @@ export default function App() {
   const [currentUser, setCurrentUser]   = useState(null);
   const [userData,    setUserData]      = useState(null);
   const [authLoading, setAuthLoading]   = useState(true);
-  const [page,        setPage]          = useState("home");
+  const [page,        setPage]          = useState("home");  // will be overridden after auth
   const [pageExtra,   setPageExtra]     = useState(null); // uid for profile
   const [showAuth,    setShowAuth]      = useState(false);
   const [showUpload,  setShowUpload]    = useState(false);
@@ -2025,8 +2537,12 @@ export default function App() {
       if (user) {
         const snap = await getDoc(doc(db,"users",user.uid));
         setUserData(snap.exists() ? snap.data() : null);
+        // Signed-in users land on explore (feed), not the marketing landing page
+        setPage(p => p === "home" ? "explore" : p);
       } else {
         setUserData(null);
+        // Signed-out users go to home (landing page)
+        setPage("home");
       }
       setAuthLoading(false);
     });
@@ -2056,6 +2572,7 @@ export default function App() {
   async function doSignOut() {
     await signOut(auth);
     setPage("home");
+    setPageExtra(null);
     showToast("Signed out 👋");
   }
 
@@ -2075,11 +2592,11 @@ export default function App() {
 
   function renderPage() {
     switch (page) {
+      // "home" ALWAYS shows the landing page — signed-in or not
       case "home":
-        return currentUser
-          ? <MainFeed currentUser={currentUser} userData={userData} showToast={showToast} onProfileClick={handleProfileClick} />
-          : <LandingPage onAuth={m=>setShowAuth(m)} onNavigate={navigate} />;
+        return <LandingPage onAuth={m=>setShowAuth(m)} onNavigate={navigate} currentUser={currentUser} />;
 
+      // "explore" ALWAYS shows the feed
       case "explore":
         return <MainFeed currentUser={currentUser} userData={userData} showToast={showToast} onProfileClick={handleProfileClick} />;
 
@@ -2106,7 +2623,10 @@ export default function App() {
           : <MainFeed currentUser={currentUser} userData={userData} showToast={showToast} onProfileClick={handleProfileClick} />;
 
       default:
-        return <MainFeed currentUser={currentUser} userData={userData} showToast={showToast} onProfileClick={handleProfileClick} />;
+        // When first loaded and signed in, go straight to explore
+        return currentUser
+          ? <MainFeed currentUser={currentUser} userData={userData} showToast={showToast} onProfileClick={handleProfileClick} />
+          : <LandingPage onAuth={m=>setShowAuth(m)} onNavigate={navigate} currentUser={currentUser} />;
     }
   }
 
