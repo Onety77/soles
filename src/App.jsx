@@ -38,14 +38,14 @@ const storage       = getStorage(firebaseApp);
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TELEGRAM_VERIFY_LINK  = "https://t.me/YourBotHandleHere";
 const X_PROFILE_LINK        = "https://x.com/welovefeeeeeeet";
-const X_COMMUNITY_LINK      = "https://x.com/welovefeeeeeeet";
+const X_COMMUNITY_LINK      = "https://x.com/i/communities/YourCommunityID";
 // New earnings model: post once, earn forever via engagement
 // 10 pts = $1. Engagement (likes, comments, views) boosts passive income.
 const POINTS_TO_DOLLAR      = 10;
 const MIN_PAYOUT_DOLLARS    = 5;
 const PAYOUT_COOLDOWN_HOURS = 12;
 // $SOLES Contract Address — visible on site
-const SOLES_CA = "Coming Soon..."; // ← replace this with actual CA
+const SOLES_CA = "PASTE_YOUR_CONTRACT_ADDRESS_HERE"; // ← replace this with actual CA
 const ADMIN_EMAIL = "admin77@gmail.com"; // ← master admin email — auto-detected on sign-in
 
 // ─── Social Platforms ─────────────────────────────────────────────────────────
@@ -360,7 +360,9 @@ const GlobalStyles = () => (
     .pav-fb{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:600;color:var(--soil);}
     .pc-name{font-size:.78rem;font-weight:500;color:var(--soil);display:flex;align-items:center;gap:3px;cursor:pointer;}
     .pc-name:hover{color:var(--accent);}
-    .vbadge{color:var(--accent);font-size:.7rem;}
+    .vbadge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#1D9BF0;color:#fff;font-size:.58rem;font-weight:700;flex-shrink:0;vertical-align:middle;}
+    .pc-img-wrap{position:relative;display:block;}
+    .pc-verified-overlay{position:absolute;bottom:8px;left:8px;background:#1D9BF0;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.35);}
     .pc-caption{font-size:.75rem;color:var(--text-muted);margin-bottom:9px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
     .pc-actions{display:flex;align-items:center;gap:10px;}
     .pac{display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:.74rem;color:var(--text-muted);font-family:var(--fb);transition:color .2s;padding:0;user-select:none;}
@@ -895,7 +897,7 @@ function VerificationRequestSheet({ currentUser, userData, onClose, showToast })
           <>
             <div style={{background:"var(--sand-light)",borderRadius:12,padding:"14px 16px",marginBottom:20}}>
               <div style={{fontSize:".78rem",color:"var(--soil)",lineHeight:1.65}}>
-                <strong>Requirements:</strong> Follow <strong>@welovefeeeeeeet</strong> on X and retweet our pinned post · Account must be at least 3 months old · If no X, provide another active social + a selfie holding a paper with <strong>"$SOLES"</strong> written on it
+                <strong>Requirements:</strong> Follow <strong>@SolesBrand</strong> on X and retweet our pinned post · Account must be at least 3 months old · If no X, provide another active social + a selfie holding a paper with <strong>"$SOLES"</strong> written on it
               </div>
             </div>
 
@@ -912,7 +914,7 @@ function VerificationRequestSheet({ currentUser, userData, onClose, showToast })
               <div className="fg">
                 <label className="fl">Your X Handle</label>
                 <input className="fi" placeholder="@yourusername" value={form.xHandle} onChange={e=>sf("xHandle",e.target.value)} />
-                <div style={{fontSize:".72rem",color:"var(--text-muted)",marginTop:5}}>Make sure you've followed @welovefeeeeeeet and retweeted our pinned post</div>
+                <div style={{fontSize:".72rem",color:"var(--text-muted)",marginTop:5}}>Make sure you've followed @SolesBrand and retweeted our pinned post</div>
               </div>
             ) : (
               <>
@@ -1034,6 +1036,8 @@ function LandingPage({ onAuth, onNavigate, currentUser }) {
         </div>
       </div>
 
+      {/* PASSIVE INCOME SECTION */}
+      <PassiveIncomeSection onAuth={onAuth} />
 
       {/* CREATOR SPOTLIGHT */}
       <div className="spotlight" ref={spotRef}>
@@ -1126,10 +1130,13 @@ function PostCard({ post, currentUser, onOpen, onLike, onProfileClick }) {
   const liked = currentUser && post.likes?.includes(currentUser.uid);
   return (
     <div className="post-card">
-      <div onClick={() => onOpen(post)}>
+      <div className="pc-img-wrap" onClick={() => onOpen(post)}>
         {post.imageURL
           ? <img className="pc-img" src={post.imageURL} alt="" loading="lazy" />
           : <div className="pc-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:"2.4rem"}}>🦶</div>}
+        {post.creatorVerified && (
+          <div className="pc-verified-overlay" title="Verified Creator">✓</div>
+        )}
       </div>
       <div className="pc-body">
         <div className="pc-header">
@@ -1929,12 +1936,53 @@ function ProfilePage({ targetUid, currentUser, userData: cud, showToast, onNavig
 }
 
 // ─── Creator Studio (embedded in profile tab) ─────────────────────────────────
+// PASSIVE TIME EARNINGS (private — not shown publicly):
+// Each post earns 0.5 pts per hour automatically.
+// Calculated when studio loads based on posts count × time since last passive credit.
+const PASSIVE_PTS_PER_POST_PER_HOUR = 0.5;
+
 function CreatorStudio({ currentUser, userData, showToast }) {
   const [requesting,     setRequesting]     = useState(false);
   const [walletAddress,  setWalletAddress]  = useState("");
+  const [passiveLoading, setPassiveLoading] = useState(false);
   const pts     = userData?.points || 0;
   const dollars = parseFloat(ptsToDollars(pts));
   const canPayout = userData?.verified && dollars >= MIN_PAYOUT_DOLLARS;
+
+  // ── Passive time-based earnings ────────────────────────────────────────────
+  // Runs silently when creator opens their studio.
+  // Awards pts based on: posts × hours since last credit × rate per post per hour.
+  useEffect(() => {
+    if (!userData?.verified || !currentUser) return;
+    const postsCount = userData?.postsCount || 0;
+    if (postsCount === 0) return;
+
+    async function creditPassive() {
+      setPassiveLoading(true);
+      try {
+        const now      = Date.now();
+        const lastCredit = userData?.lastPassiveCredit
+          ? (userData.lastPassiveCredit.toDate ? userData.lastPassiveCredit.toDate().getTime() : new Date(userData.lastPassiveCredit).getTime())
+          : now - 3600000; // default: 1 hour ago if first time
+
+        const hoursElapsed = Math.min((now - lastCredit) / 3600000, 72); // cap at 72h to prevent huge accruals after long absence
+        if (hoursElapsed < 0.25) return; // don't credit if less than 15 min since last
+
+        const ptsEarned = parseFloat((postsCount * PASSIVE_PTS_PER_POST_PER_HOUR * hoursElapsed).toFixed(2));
+        if (ptsEarned <= 0) return;
+
+        await updateDoc(doc(db,"users",currentUser.uid), {
+          points:           increment(ptsEarned),
+          lastPassiveCredit: serverTimestamp(),
+        });
+      } catch(e) {
+        // silent — passive earnings never block UI
+        console.error("Passive credit error:", e);
+      }
+      setPassiveLoading(false);
+    }
+    creditPassive();
+  }, [currentUser?.uid]); // only runs once per studio open
 
   function cooldownOk() {
     if (!userData?.lastPayoutRequest) return true;
@@ -2001,13 +2049,19 @@ function CreatorStudio({ currentUser, userData, showToast }) {
 
       {/* Earnings card */}
       <div className="earn-card">
-        <div className="earn-label">Available Balance</div>
+        <div className="earn-label">Available Balance {passiveLoading && <span className="spin-inline" style={{width:10,height:10,borderWidth:1.5,marginLeft:6,verticalAlign:"middle"}}/>}</div>
         <div className="earn-amount">${dollars}</div>
-        <div className="earn-pts">{pts.toFixed(0)} engagement points · ${MIN_PAYOUT_DOLLARS} minimum to cash out</div>
+        <div className="earn-pts">{pts.toFixed(1)} pts · ${MIN_PAYOUT_DOLLARS} min · every {PAYOUT_COOLDOWN_HOURS}h</div>
         <div className="earn-row">
           <div className="earn-mini"><div className="earn-mini-v">{userData?.postsCount||0}</div><div className="earn-mini-l">Posts</div></div>
           <div className="earn-mini"><div className="earn-mini-v">{userData?.followersCount||0}</div><div className="earn-mini-l">Followers</div></div>
           <div className="earn-mini"><div className="earn-mini-v">${(userData?.totalEarnings||0).toFixed(2)}</div><div className="earn-mini-l">Total Earned</div></div>
+        </div>
+        {/* Passive rate — private, only visible here */}
+        <div style={{marginTop:14,padding:"10px 14px",background:"rgba(255,255,255,.07)",borderRadius:10,fontSize:".72rem",color:"var(--sand-dark)",position:"relative",zIndex:1}}>
+          🕐 Passive rate: <strong style={{color:"var(--sand)"}}>{PASSIVE_PTS_PER_POST_PER_HOUR} pt/post/hr</strong>
+          {" · "}{userData?.postsCount||0} posts × {PASSIVE_PTS_PER_POST_PER_HOUR} = <strong style={{color:"var(--sand)"}}>{((userData?.postsCount||0)*PASSIVE_PTS_PER_POST_PER_HOUR).toFixed(1)} pts/hr</strong>
+          {" · "}<span style={{opacity:.7}}>Credited each time you open Studio</span>
         </div>
       </div>
 
@@ -2355,6 +2409,7 @@ function MainFeed({ currentUser, userData, showToast, onProfileClick }) {
   const [posts,       setPosts]       = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [filter,      setFilter]      = useState("latest");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [openPost,    setOpenPost]    = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState(null); // null = not searching
@@ -2368,14 +2423,16 @@ function MainFeed({ currentUser, userData, showToast, onProfileClick }) {
       ? query(collection(db,"posts"), orderBy("likesCount","desc"), limit(40))
       : query(collection(db,"posts"), orderBy("createdAt","desc"), limit(40));
     const unsub = onSnapshot(q, snap => {
-      setPosts(snap.docs.map(d=>({id:d.id,...d.data()})));
+      let all = snap.docs.map(d=>({id:d.id,...d.data()}));
+      if (verifiedOnly) all = all.filter(p => p.creatorVerified);
+      setPosts(all);
       setLoading(false);
     }, err => {
       console.error("Feed error:", err);
       setLoading(false);
     });
     return unsub;
-  }, [filter]);
+  }, [filter, verifiedOnly]);
 
   // Search users by username / displayName
   async function doSearch(q) {
@@ -2433,6 +2490,11 @@ function MainFeed({ currentUser, userData, showToast, onProfileClick }) {
         <div className="feed-filters">
           <button className={`fpill ${filter==="latest"?"active":""}`}  onClick={()=>setFilter("latest")}>Latest</button>
           <button className={`fpill ${filter==="popular"?"active":""}`} onClick={()=>setFilter("popular")}>Popular</button>
+          <button
+            className={`fpill ${verifiedOnly?"active":""}`}
+            onClick={()=>setVerifiedOnly(v=>!v)}
+            style={verifiedOnly ? {background:"#1D9BF0",color:"#fff"} : {}}
+          >✓ Verified</button>
         </div>
       </div>
 
