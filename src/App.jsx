@@ -784,7 +784,8 @@ function LandingPage({ onAuth, onNavigate }) {
         <img src="logo.png" className="footer-logo-img" alt="SOLES" onError={e=>{e.target.style.display="none";}} />
         <div className="footer-tagline">We just like feet..</div>
         {/* CONTRACT_ADDRESS_SECTION — remove display:none below and uncomment JSX when launching coin */}
-        {/* <div className="ca-section" style={{display:"block"}}><div style={{fontSize:".65rem",letterSpacing:".2em",textTransform:"uppercase",color:"var(--sand-dark)",marginBottom:5}}>$SOLES Contract Address</div><div className="ca-addr" onClick={()=>navigator.clipboard.writeText("PASTE_CA_HERE").then(()=>alert("Copied!"))}>PASTE_CA_HERE</div></div> */}
+        { <div className="ca-section" style={{display:"block"}}><div style={{fontSize:".65rem",letterSpacing:".2em",textTransform:"uppercase",color:"var(--sand-dark)",marginBottom:5}}>$SOLES Contract Address</div><div className="ca-addr" onClick={()=>navigator.clipboard.writeText("PASTE_CA_HERE").then(()=>alert("Copied!"))}>Coming Soon..</div></div> }
+        
         <div className="footer-social">
           <a href={X_PROFILE_LINK}       target="_blank" rel="noreferrer" className="soc-btn">𝕏</a>
           <a href={X_COMMUNITY_LINK}     target="_blank" rel="noreferrer" className="soc-btn">🫂</a>
