@@ -1134,9 +1134,7 @@ function PostCard({ post, currentUser, onOpen, onLike, onProfileClick }) {
         {post.imageURL
           ? <img className="pc-img" src={post.imageURL} alt="" loading="lazy" />
           : <div className="pc-img" style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:"2.4rem"}}>🦶</div>}
-        {post.creatorVerified && (
-          <div className="pc-verified-overlay" title="Verified Creator">✓</div>
-        )}
+        
       </div>
       <div className="pc-body">
         <div className="pc-header">
