@@ -960,7 +960,7 @@ function LandingPage({ onAuth, onNavigate, currentUser }) {
   const hiwRef  = useFadeIn();
   const spotRef = useFadeIn();
   const comRef  = useFadeIn();
-  const mqItems = ["Free for Members","Paid for Creators","Daily Fresh Drops","Verified Creators","Follow Your Favorites","The World's #1 Foot Community","🦶"];
+  const mqItems = ["Free for Members","Paid for Creators","Daily Fresh Drops","Verified Creators","Follow Your Favorites","The World's #1 Fetish","🦶"];
   const mq      = [...mqItems, ...mqItems];
 
   return (
@@ -972,7 +972,7 @@ function LandingPage({ onAuth, onNavigate, currentUser }) {
         <div className="hero-grain" />
         <div className="hero-ring"><span/><span/><span/></div>
         <div className="hero-content">
-          <div className="hero-overline">The World's #1 Foot Community</div>
+          <div className="hero-overline">The World's 1st Foot Economy</div>
           <div className="hero-logo-wrap">
             <img src="logo.png" className="hero-logo-img" alt="SOLES" onError={e=>{e.target.style.display="none";}} />
           </div>
@@ -1036,8 +1036,6 @@ function LandingPage({ onAuth, onNavigate, currentUser }) {
         </div>
       </div>
 
-      {/* PASSIVE INCOME SECTION */}
-      <PassiveIncomeSection onAuth={onAuth} />
 
       {/* CREATOR SPOTLIGHT */}
       <div className="spotlight" ref={spotRef}>
