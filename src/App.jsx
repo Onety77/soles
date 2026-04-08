@@ -100,7 +100,7 @@ const GlobalStyles = () => (
     .nav{position:sticky;top:0;z-index:100;background:var(--glass);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 24px;height:62px;display:flex;align-items:center;justify-content:space-between;}
     .nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none;}
     .nav-logo-img{height:32px;}
-    .nav-logo-text{font-family:var(--fs);font-size:1.6rem;font-weight:700;color:var(--soil);letter-spacing:.02em;}
+    .nav-logo-text{font-family:var(--fd);font-size:1.6rem;font-weight:700;color:var(--soil);letter-spacing:.02em;}
     .nav-center{display:flex;align-items:center;gap:4px;}
     .nav-link{background:none;border:none;cursor:pointer;font-family:var(--fb);font-size:.76rem;font-weight:500;color:var(--text-muted);padding:6px 12px;border-radius:8px;transition:all .2s;}
     .nav-link:hover{color:var(--soil);background:var(--sand-light);}
@@ -823,10 +823,9 @@ function VerificationRequestSheet({ currentUser, userData, onClose, showToast })
             {/* Steps explanation */}
             <div style={{marginBottom:20}}>
               {[
-                ["1","X Account","Share your active X (Twitter) handle — must be at least 3 months old."],
-                ["2","Follow & Retweet","Follow @SolesBrand on X and retweet our pinned introduction post using the same account."],
-                ["3","No X? No problem","If you don't have X, provide your main active social media account instead."],
-                ["4","Selfie","Take a selfie with your face visible holding a handwritten paper that says \"$SOLES\". Upload it below."],
+                ["1","Main Account","Share your active X (Twitter) handle — must be at least 3 months old."],
+                ["2","Follow & Retweet","Follow @welovefeeeeet on X and retweet our pinned introduction post using the same account."],
+                ["3","Selfie","Take a selfie with your face visible holding a handwritten paper that says \"$SOLES\". Upload it below."],
               ].map(([n,t,d]) => (
                 <div key={n} className="verify-step">
                   <div className="verify-step-num">{n}</div>
