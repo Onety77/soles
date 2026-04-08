@@ -37,8 +37,8 @@ const storage       = getStorage(firebaseApp);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TELEGRAM_VERIFY_LINK  = "https://t.me/YourBotHandleHere";
-const X_PROFILE_LINK        = "https://x.com/welovefeeeeet";
-const X_COMMUNITY_LINK      = "https://x.com/i/communities/YourCommunityID";
+const X_PROFILE_LINK        = "https://x.com/welovefeeeeeeet";
+const X_COMMUNITY_LINK      = "https://x.com/welovefeeeeeeet";
 // New earnings model: post once, earn forever via engagement
 // 10 pts = $1. Engagement (likes, comments, views) boosts passive income.
 const POINTS_TO_DOLLAR      = 10;
@@ -824,7 +824,7 @@ function VerificationRequestSheet({ currentUser, userData, onClose, showToast })
             <div style={{marginBottom:20}}>
               {[
                 ["1","Main Account","Share your active X (Twitter) handle — must be at least 3 months old."],
-                ["2","Follow & Retweet","Follow @welovefeeeeet on X and retweet our pinned introduction post using the same account."],
+                ["2","Follow & Retweet","Follow @welovefeeeeeeet on X and retweet our pinned introduction post using the same account."],
                 ["3","Selfie","Take a selfie with your face visible holding a handwritten paper that says \"$SOLES\". Upload it below."],
               ].map(([n,t,d]) => (
                 <div key={n} className="verify-step">
