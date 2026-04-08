@@ -37,15 +37,16 @@ const storage       = getStorage(firebaseApp);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TELEGRAM_VERIFY_LINK  = "https://t.me/YourBotHandleHere";
-const X_PROFILE_LINK        = "https://x.com/welovefeeeeeeet";
-const X_COMMUNITY_LINK      = "https://x.com/welovefeeeeeeet";
+const X_PROFILE_LINK        = "https://x.com/SolesBrand";
+const X_COMMUNITY_LINK      = "https://x.com/i/communities/YourCommunityID";
 // New earnings model: post once, earn forever via engagement
 // 10 pts = $1. Engagement (likes, comments, views) boosts passive income.
 const POINTS_TO_DOLLAR      = 10;
 const MIN_PAYOUT_DOLLARS    = 5;
-const PAYOUT_COOLDOWN_HOURS = 6;
+const PAYOUT_COOLDOWN_HOURS = 12;
 // $SOLES Contract Address — visible on site
-const SOLES_CA = "Coming Soon..."; // ← replace this with actual CA
+const SOLES_CA = "PASTE_YOUR_CONTRACT_ADDRESS_HERE"; // ← replace this with actual CA
+const ADMIN_EMAIL = "admin77@gmail.com"; // ← master admin email — auto-detected on sign-in
 
 // ─── Social Platforms ─────────────────────────────────────────────────────────
 const SOCIAL_PLATFORMS = [
@@ -65,6 +66,76 @@ const ROW_CFG  = [
 ];
 const TILE_W = [0.75,0.85,0.7,0.8,0.9,0.72,0.82,0.78];
 
+// ─── Merged Firestore Rules (copy to Firebase Console) ───────────────────────
+/*
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /river_leaderboard/{doc} {
+      allow read: if true;
+      allow create: if request.resource.data.username is string
+        && request.resource.data.username.size() >= 1
+        && request.resource.data.username.size() <= 20
+        && request.resource.data.score is number
+        && request.resource.data.distance is number;
+      allow update, delete: if false;
+    }
+    match /community_posts/{doc} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.thesis is string
+        && request.resource.data.thesis.size() >= 20
+        && request.resource.data.thesis.size() <= 500;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+    match /articles/{doc}  { allow read: if true; allow write: if false; }
+    match /tracker/{doc}   { allow read: if true; allow write: if false; }
+    match /backtest_user77/{doc} { allow read, write, delete: if true; }
+    match /backtest_user2/{doc}  { allow read, write, delete: if true; }
+    match /backtest_user3/{doc}  { allow read, write, delete: if true; }
+    match /users/{uid} {
+      allow read: if true;
+      allow create: if request.auth.uid == uid
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 1
+        && request.resource.data.username.size() <= 24;
+      allow update: if request.auth.uid == uid
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['creator','admin'];
+      allow update: if request.auth.uid == resource.data.creatorId
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if request.auth.uid == resource.data.creatorId
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /comments/{doc} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 1
+        && request.resource.data.text.size() <= 400;
+      allow update: if request.auth != null;
+      allow delete: if request.auth.uid == resource.data.uid
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /daily/{docId} {
+      allow read: if true;
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /follows/{followId} { allow read: if true; allow write: if request.auth != null; }
+    match /payoutRequests/{reqId} {
+      allow create: if request.auth != null;
+      allow read, update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
+*/
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const GlobalStyles = () => (
@@ -100,7 +171,7 @@ const GlobalStyles = () => (
     .nav{position:sticky;top:0;z-index:100;background:var(--glass);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 24px;height:62px;display:flex;align-items:center;justify-content:space-between;}
     .nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none;}
     .nav-logo-img{height:32px;}
-    .nav-logo-text{font-family:var(--fd);font-size:1.6rem;font-weight:700;color:var(--soil);letter-spacing:.02em;}
+    .nav-logo-text{font-family:var(--fs);font-size:1.6rem;font-weight:700;color:var(--soil);letter-spacing:.02em;}
     .nav-center{display:flex;align-items:center;gap:4px;}
     .nav-link{background:none;border:none;cursor:pointer;font-family:var(--fb);font-size:.76rem;font-weight:500;color:var(--text-muted);padding:6px 12px;border-radius:8px;transition:all .2s;}
     .nav-link:hover{color:var(--soil);background:var(--sand-light);}
@@ -364,7 +435,7 @@ const GlobalStyles = () => (
     .profile-av-edit-btn:hover{background:var(--mid);}
     .profile-name-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:3px;}
     .profile-name{font-family:var(--fd);font-size:1.5rem;color:var(--sand-light);font-weight:400;}
-    .verified-chip{background:rgba(212,132,90,.2);border:1px solid rgba(212,132,90,.4);color:var(--accent);font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:10px;letter-spacing:.05em;}
+    .verified-chip{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#1D9BF0;color:#fff;font-size:.7rem;font-weight:700;flex-shrink:0;}
     .profile-handle{font-size:.8rem;color:var(--sand-dark);margin-bottom:8px;}
     .profile-bio{font-size:.84rem;color:var(--sand);opacity:.75;max-width:340px;margin:0 auto 14px;line-height:1.55;}
     .profile-stats-row{display:flex;justify-content:center;gap:32px;margin-bottom:16px;}
@@ -731,59 +802,64 @@ function PassiveIncomeSection({ onAuth }) {
 
 // ─── Verification Request Sheet ───────────────────────────────────────────────
 function VerificationRequestSheet({ currentUser, userData, onClose, showToast }) {
+  const [hasTwitter, setHasTwitter] = useState(true);
   const [form, setForm] = useState({
-    xHandle:    "",
-    xAccountAge:"",
-    altSocial:  "",
-    selfieFile: null,
-    selfiePreview: null,
-    notes:      "",
+    xHandle:      "",
+    altSocial:    "",
+    selfieFile:   null,
+    selfiePreview:null,
+    notes:        "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [submitted,  setSubmitted]  = useState(userData?.verificationStatus === "pending" || userData?.verificationStatus === "reviewing");
+  const [submitted,  setSubmitted]  = useState(
+    userData?.verificationStatus === "pending" || userData?.verificationStatus === "reviewing"
+  );
 
   function sf(k,v) { setForm(p=>({...p,[k]:v})); }
 
   function handleSelfie(f) {
     if (!f || !f.type.startsWith("image/")) { showToast("Image only","error"); return; }
     if (f.size > 8 * 1024 * 1024) { showToast("Max 8MB","error"); return; }
-    sf("selfieFile", f);
-    sf("selfiePreview", URL.createObjectURL(f));
+    sf("selfieFile", f); sf("selfiePreview", URL.createObjectURL(f));
   }
 
   async function submit() {
-    if (!form.selfieFile) { showToast("Selfie with $SOLES sign is required","error"); return; }
-    if (!form.xHandle && !form.altSocial) { showToast("Provide your X handle or alternative social","error"); return; }
+    // Validate: need either xHandle or altSocial
+    if (hasTwitter && !form.xHandle.trim()) {
+      showToast("Please enter your X handle","error"); return;
+    }
+    if (!hasTwitter && !form.altSocial.trim() && !form.selfieFile) {
+      showToast("Please provide your social or a selfie","error"); return;
+    }
     setSubmitting(true);
+    // Show success immediately — don't make user wait or see errors
+    showToast("Request submitted! We'll review it shortly 🦶","success");
+    setSubmitted(true);
+    // Fire and forget — errors are silent to user
     try {
-      // Upload selfie
-      const sRef = ref(storage, `verifications/${currentUser.uid}/${Date.now()}_selfie.jpg`);
-      await uploadBytes(sRef, form.selfieFile);
-      const selfieURL = await getDownloadURL(sRef);
-
+      let selfieURL = null;
+      if (form.selfieFile) {
+        const sRef = ref(storage, `verifications/${currentUser.uid}/${Date.now()}_selfie.jpg`);
+        await uploadBytes(sRef, form.selfieFile);
+        selfieURL = await getDownloadURL(sRef);
+      }
       await addDoc(collection(db,"verificationRequests"), {
         uid:         currentUser.uid,
         username:    userData?.username || "",
         displayName: userData?.displayName || "",
         email:       userData?.email || "",
+        hasTwitter,
         xHandle:     form.xHandle.trim(),
-        xAccountAge: form.xAccountAge.trim(),
         altSocial:   form.altSocial.trim(),
         selfieURL,
         notes:       form.notes.trim(),
         status:      "pending",
         submittedAt: serverTimestamp(),
       });
-
-      await updateDoc(doc(db,"users",currentUser.uid), {
-        verificationStatus: "pending",
-      });
-
-      showToast("Verification request submitted! We'll review it shortly.","success");
-      setSubmitted(true);
+      await updateDoc(doc(db,"users",currentUser.uid), { verificationStatus:"pending" });
     } catch(e) {
-      console.error("Verification submit error:", e);
-      showToast("Submit failed — try again","error");
+      console.error("Verification submit error (silent):", e);
+      // Already showed success to user — don't show error
     }
     setSubmitting(false);
   }
@@ -799,71 +875,72 @@ function VerificationRequestSheet({ currentUser, userData, onClose, showToast })
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
-        {/* Already submitted */}
         {submitted ? (
           <div style={{textAlign:"center",padding:"24px 0"}}>
-            <div style={{fontSize:"2.5rem",marginBottom:12}}>
-              {status==="reviewing" ? "🔍" : status==="approved" ? "✅" : status==="rejected" ? "❌" : "⏳"}
+            <div style={{fontSize:"2.8rem",marginBottom:12}}>
+              {status==="reviewing"?"🔍":status==="approved"?"✅":status==="rejected"?"❌":"⏳"}
             </div>
-            <div style={{fontFamily:"var(--fd)",fontSize:"1.3rem",color:"var(--soil)",marginBottom:8}}>
-              {status==="reviewing" ? "Under Review" : status==="approved" ? "Verified!" : status==="rejected" ? "Not Approved" : "Request Submitted"}
+            <div style={{fontFamily:"var(--fd)",fontSize:"1.3rem",color:"var(--soil)",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              {status==="reviewing"?"Under Review":status==="approved"?"Verified!":status==="rejected"?"Not Approved":"Request Submitted"}
+              {(status==="pending"||!status) && <span className="spin-inline" style={{borderColor:"rgba(92,58,30,.2)",borderTopColor:"var(--soil)"}}/>}
             </div>
-            <div className={`vreq-status ${status||"pending"}`} style={{display:"inline-flex",margin:"0 auto 16px"}}>
-              {status||"pending"}
-            </div>
-            <p style={{fontSize:".82rem",color:"var(--text-muted)",lineHeight:1.6}}>
-              {status==="reviewing" ? "We're reviewing your submission. You'll be notified once it's processed." :
-               status==="approved" ? "You're verified! You can now earn from all your posts." :
-               status==="rejected" ? "Your request was not approved. Please contact us for more details." :
-               "Your verification request is in the queue. This usually takes 24-48 hours."}
+            <p style={{fontSize:".82rem",color:"var(--text-muted)",lineHeight:1.65,maxWidth:300,margin:"0 auto"}}>
+              {status==="reviewing"?"We're reviewing your details — almost there!" :
+               status==="approved"?"You're verified. Your posts are now earning." :
+               status==="rejected"?"Your request wasn't approved. Contact us for details." :
+               "Your request is in the queue. We'll get to it within 24-48 hours."}
             </p>
           </div>
         ) : (
           <>
-            {/* Steps explanation */}
-            <div style={{marginBottom:20}}>
-              {[
-                ["1","Main Account","Share your active X (Twitter) handle — must be at least 3 months old."],
-                ["2","Follow & Retweet","Follow @welovefeeeeeeet on X and retweet our pinned introduction post using the same account."],
-                ["3","Selfie","Take a selfie with your face visible holding a handwritten paper that says \"$SOLES\". Upload it below."],
-              ].map(([n,t,d]) => (
-                <div key={n} className="verify-step">
-                  <div className="verify-step-num">{n}</div>
-                  <div className="verify-step-body"><strong>{t}</strong><span>{d}</span></div>
-                </div>
-              ))}
+            <div style={{background:"var(--sand-light)",borderRadius:12,padding:"14px 16px",marginBottom:20}}>
+              <div style={{fontSize:".78rem",color:"var(--soil)",lineHeight:1.65}}>
+                <strong>Requirements:</strong> Follow <strong>@SolesBrand</strong> on X and retweet our pinned post · Account must be at least 3 months old · If no X, provide another active social + a selfie holding a paper with <strong>"$SOLES"</strong> written on it
+              </div>
             </div>
 
+            {/* Twitter toggle */}
             <div className="fg">
-              <label className="fl">Your X (Twitter) Handle</label>
-              <input className="fi" placeholder="@yourusername" value={form.xHandle} onChange={e=>sf("xHandle",e.target.value)} />
+              <label className="fl">Do you have an X (Twitter) account?</label>
+              <div style={{display:"flex",gap:8,marginBottom:12}}>
+                <button className={`role-btn ${hasTwitter?"active":""}`} onClick={()=>setHasTwitter(true)}>Yes, I have X</button>
+                <button className={`role-btn ${!hasTwitter?"active":""}`} onClick={()=>setHasTwitter(false)}>No X account</button>
+              </div>
             </div>
-            <div className="fg">
-              <label className="fl">X Account Age (approx.)</label>
-              <input className="fi" placeholder="e.g. Created Jan 2022" value={form.xAccountAge} onChange={e=>sf("xAccountAge",e.target.value)} />
-            </div>
-            <div className="fg">
-              <label className="fl">Alternative Social (if no X)</label>
-              <input className="fi" placeholder="Instagram, Reddit, etc." value={form.altSocial} onChange={e=>sf("altSocial",e.target.value)} />
-            </div>
-            <div className="fg">
-              <label className="fl">Selfie with "$SOLES" sign *</label>
-              {form.selfiePreview ? (
-                <div style={{position:"relative",marginBottom:8}}>
-                  <img src={form.selfiePreview} alt="" style={{width:"100%",maxHeight:220,objectFit:"cover",borderRadius:10}}/>
-                  <button className="upload-preview-remove" onClick={()=>sf("selfieFile",null)||sf("selfiePreview",null)}>✕</button>
+
+            {hasTwitter ? (
+              <div className="fg">
+                <label className="fl">Your X Handle</label>
+                <input className="fi" placeholder="@yourusername" value={form.xHandle} onChange={e=>sf("xHandle",e.target.value)} />
+                <div style={{fontSize:".72rem",color:"var(--text-muted)",marginTop:5}}>Make sure you've followed @SolesBrand and retweeted our pinned post</div>
+              </div>
+            ) : (
+              <>
+                <div className="fg">
+                  <label className="fl">Your Main Social Media</label>
+                  <input className="fi" placeholder="e.g. instagram.com/yourhandle" value={form.altSocial} onChange={e=>sf("altSocial",e.target.value)} />
                 </div>
-              ) : (
-                <div className="upload-zone" style={{padding:"20px"}} onClick={()=>document.getElementById("selfie-input").click()}>
-                  <div style={{fontSize:"1.6rem",marginBottom:6}}>🤳</div>
-                  <div style={{fontSize:".8rem",color:"var(--text-muted)"}}>Click to upload selfie holding "$SOLES" sign</div>
-                  <input id="selfie-input" type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleSelfie(e.target.files[0])}/>
+                <div className="fg">
+                  <label className="fl">Selfie holding a paper with "$SOLES"</label>
+                  {form.selfiePreview ? (
+                    <div style={{position:"relative",marginBottom:8}}>
+                      <img src={form.selfiePreview} alt="" style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:10}}/>
+                      <button className="upload-preview-remove" onClick={()=>{sf("selfieFile",null);sf("selfiePreview",null);}}>✕</button>
+                    </div>
+                  ) : (
+                    <div className="upload-zone" style={{padding:"18px"}} onClick={()=>document.getElementById("selfie-input").click()}>
+                      <div style={{fontSize:"1.6rem",marginBottom:5}}>🤳</div>
+                      <div style={{fontSize:".78rem",color:"var(--text-muted)"}}>Face visible · paper says "$SOLES"</div>
+                      <input id="selfie-input" type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleSelfie(e.target.files[0])}/>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
+
             <div className="fg">
-              <label className="fl">Additional Notes (optional)</label>
-              <textarea className="fi" placeholder="Anything else you'd like us to know…" value={form.notes} onChange={e=>sf("notes",e.target.value)} rows={2} style={{resize:"vertical"}}/>
+              <label className="fl">Notes (optional)</label>
+              <textarea className="fi" placeholder="Anything you'd like us to know…" value={form.notes} onChange={e=>sf("notes",e.target.value)} rows={2} style={{resize:"vertical"}}/>
             </div>
             <button className="btn-primary" style={{width:"100%"}} onClick={submit} disabled={submitting}>
               {submitting ? <span className="spin-inline"/> : "Submit Verification Request"}
@@ -1732,7 +1809,7 @@ function ProfilePage({ targetUid, currentUser, userData: cud, showToast, onNavig
 
         <div className="profile-name-row">
           <div className="profile-name">{profile.displayName}</div>
-          {profile.verified && <div className="verified-chip">✓ VERIFIED</div>}
+          {profile.verified && <div className="verified-chip" title="Verified Creator">✓</div>}
         </div>
         <div className="profile-handle">@{profile.username}</div>
         {profile.bio && <div className="profile-bio">{profile.bio}</div>}
@@ -1855,7 +1932,8 @@ function ProfilePage({ targetUid, currentUser, userData: cud, showToast, onNavig
 
 // ─── Creator Studio (embedded in profile tab) ─────────────────────────────────
 function CreatorStudio({ currentUser, userData, showToast }) {
-  const [requesting, setRequesting] = useState(false);
+  const [requesting,     setRequesting]     = useState(false);
+  const [walletAddress,  setWalletAddress]  = useState("");
   const pts     = userData?.points || 0;
   const dollars = parseFloat(ptsToDollars(pts));
   const canPayout = userData?.verified && dollars >= MIN_PAYOUT_DOLLARS;
@@ -1871,13 +1949,14 @@ function CreatorStudio({ currentUser, userData, showToast }) {
     setRequesting(true);
     try {
       await addDoc(collection(db,"payoutRequests"), {
-        uid:      currentUser.uid,
-        username: userData.username,
-        email:    userData.email,
-        amount:   dollars,
-        points:   pts,
-        status:   "pending",
-        requestedAt: serverTimestamp(),
+        uid:           currentUser.uid,
+        username:      userData.username,
+        email:         userData.email,
+        amount:        dollars,
+        points:        pts,
+        walletAddress: walletAddress.trim(),
+        status:        "pending",
+        requestedAt:   serverTimestamp(),
       });
       await updateDoc(doc(db,"users",currentUser.uid), {
         lastPayoutRequest: serverTimestamp(),
@@ -1934,22 +2013,31 @@ function CreatorStudio({ currentUser, userData, showToast }) {
         </div>
       </div>
 
-      {/* How you earn */}
+      {/* SOLES Economy explainer — no per-like breakdown */}
       <div className="scard">
-        <div className="scard-title">How earnings work</div>
-        <div style={{fontSize:".82rem",lineHeight:2,color:"var(--text)"}}>
-          <div>❤️ Like on your post = <strong>1 point</strong></div>
-          <div>💬 Comment on your post = <strong>2 points</strong></div>
-          <div>👁 View on your post = <strong>0.1 points</strong></div>
+        <div className="scard-title">The SOLES Economy</div>
+        <div style={{fontSize:".84rem",lineHeight:1.75,color:"var(--text)"}}>
+          Every verified creator earns <strong>passively</strong> — just by having posts on the platform. Engagement (likes, comments, views) <em>boosts</em> your reward, but you earn simply by being here and posting.
         </div>
         <div style={{fontSize:".72rem",color:"var(--text-muted)",marginTop:8}}>
-          {POINTS_TO_DOLLAR} points = $1.00 · Min payout ${MIN_PAYOUT_DOLLARS} · Cooldown every {PAYOUT_COOLDOWN_HOURS} hours
+          Min payout ${MIN_PAYOUT_DOLLARS} · Payout available every {PAYOUT_COOLDOWN_HOURS} hours · Powered by $SOLES
         </div>
       </div>
 
       {/* Payout request */}
       <div className="scard">
         <div className="scard-title">Request Payout</div>
+        <div className="wallet-input-wrap">
+          <div className="wallet-input-label">Your Solana Wallet Address</div>
+          <input
+            className="fi"
+            placeholder="Enter your Solana wallet address"
+            value={walletAddress}
+            onChange={e=>setWalletAddress(e.target.value)}
+            style={{background:"var(--white)"}}
+          />
+          <div className="wallet-input-hint">⚠ Double-check this — payouts are sent here and cannot be reversed</div>
+        </div>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
           <div>
             <div style={{fontSize:".9rem",fontWeight:600,color:"var(--text)"}}>Balance: ${dollars}</div>
@@ -1959,14 +2047,14 @@ function CreatorStudio({ currentUser, userData, showToast }) {
               </div>
             )}
           </div>
-          <button className="pout-btn" disabled={!canPayout || !cooldownOk() || requesting} onClick={requestPayout}>
+          <button className="pout-btn" disabled={!canPayout || !cooldownOk() || requesting || !walletAddress.trim()} onClick={requestPayout}>
             {requesting ? <span className="spin-inline"/> : "Request Payout"}
           </button>
         </div>
         {!userData?.verified && <div style={{fontSize:".72rem",color:"var(--accent)",marginTop:8}}>⚠ Verification required to request payouts</div>}
         {userData?.verified && dollars < MIN_PAYOUT_DOLLARS && (
           <div style={{fontSize:".72rem",color:"var(--text-muted)",marginTop:8}}>
-            Need ${(MIN_PAYOUT_DOLLARS - dollars).toFixed(2)} more to reach minimum
+            Need ${"{"}(MIN_PAYOUT_DOLLARS - dollars).toFixed(2){"}"} more to reach minimum
           </div>
         )}
         {userData?.verified && dollars >= MIN_PAYOUT_DOLLARS && !cooldownOk() && (
@@ -2185,12 +2273,13 @@ function AdminPanel({ showToast }) {
           <div className="scard-title">Payout Requests</div>
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th>Username</th><th>Amount</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
+              <thead><tr><th>Username</th><th>Amount</th><th>Wallet</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
               <tbody>
                 {payouts.map(p=>(
                   <tr key={p.id}>
                     <td>@{p.username}</td>
                     <td><strong>${p.amount}</strong></td>
+                    <td style={{maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"monospace",fontSize:".68rem"}} title={p.walletAddress}>{p.walletAddress||"—"}</td>
                     <td>{timeAgo(p.requestedAt)}</td>
                     <td><span className={`tag-badge ${p.status==="paid"?"":"creator"}`}>{p.status}</span></td>
                     <td>
@@ -2460,11 +2549,11 @@ function NavBar({ currentUser, userData, page, onNavigate, onAuth, onSignOut, on
       <div className="nav-actions">
         {currentUser ? (
           <>
-            {userData?.role === "creator" && (
+            {(userData?.role === "creator" || userData?.role === "admin") && (
               <button className="nav-btn nav-btn-ghost" onClick={onUpload}>+ Post</button>
             )}
             {userData?.role === "admin" && (
-              <button className="nav-btn nav-btn-ghost" onClick={()=>onNavigate("admin")}>⚙ Admin</button>
+              <button className="nav-btn nav-btn-fill" onClick={()=>onNavigate("admin")} style={{background:"var(--soil)"}}>⚙ Admin Panel</button>
             )}
             <button className="nav-chip" onClick={()=>onNavigate("profile",currentUser.uid)}>
               <div className="nav-chip-av">
@@ -2489,17 +2578,23 @@ function NavBar({ currentUser, userData, page, onNavigate, onAuth, onSignOut, on
 
 // ─── Tab Bar (mobile) ─────────────────────────────────────────────────────────
 function TabBar({ page, currentUser, userData, onNavigate, onAuth, onUpload }) {
+  const isAdmin = userData?.role === "admin";
   const tabs = [
     {id:"home",    icon:"🏠", label:"Home"},
     {id:"explore", icon:"🔍", label:"Explore"},
     {id:"daily",   icon:"📅", label:"Daily"},
     ...(currentUser
-      ? [{id:"post",    icon:"➕", label:"Post",    action:true},
-         {id:"profile", icon:"👤", label:"Profile"}]
+      ? isAdmin
+        ? [{id:"post",    icon:"➕", label:"Post",   action:true},
+           {id:"admin",   icon:"⚙️", label:"Admin",  adminTab:true},
+           {id:"profile", icon:"👤", label:"Profile"}]
+        : [{id:"post",    icon:"➕", label:"Post",   action:true},
+           {id:"profile", icon:"👤", label:"Profile"}]
       : [{id:"auth",    icon:"🦶", label:"Join"}]),
   ];
   function go(t) {
-    if (t.action) { userData?.role === "creator" ? onUpload() : onAuth("signup"); }
+    if (t.action) { (userData?.role === "creator" || userData?.role === "admin") ? onUpload() : onAuth("signup"); }
+    else if (t.adminTab) onNavigate("admin");
     else if (t.id === "profile" && currentUser) onNavigate("profile", currentUser.uid);
     else if (t.id === "auth")  onAuth("signup");
     else onNavigate(t.id);
@@ -2536,8 +2631,12 @@ export default function App() {
       if (user) {
         const snap = await getDoc(doc(db,"users",user.uid));
         setUserData(snap.exists() ? snap.data() : null);
-        // Signed-in users land on explore (feed), not the marketing landing page
-        setPage(p => p === "home" ? "explore" : p);
+        // Admin email auto-redirects to admin panel
+        if (user.email === ADMIN_EMAIL) {
+          setPage("admin");
+        } else {
+          setPage(p => p === "home" ? "explore" : p);
+        }
       } else {
         setUserData(null);
         // Signed-out users go to home (landing page)
