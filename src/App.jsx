@@ -37,15 +37,15 @@ const storage       = getStorage(firebaseApp);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TELEGRAM_VERIFY_LINK  = "https://t.me/YourBotHandleHere";
-const X_PROFILE_LINK        = "https://x.com/SolesBrand";
-const X_COMMUNITY_LINK      = "https://x.com/i/communities/YourCommunityID";
+const X_PROFILE_LINK        = "https://x.com/welovefeeeeeeet";
+const X_COMMUNITY_LINK      = "https://x.com/welovefeeeeeeet";
 // New earnings model: post once, earn forever via engagement
 // 10 pts = $1. Engagement (likes, comments, views) boosts passive income.
 const POINTS_TO_DOLLAR      = 10;
 const MIN_PAYOUT_DOLLARS    = 5;
 const PAYOUT_COOLDOWN_HOURS = 12;
 // $SOLES Contract Address — visible on site
-const SOLES_CA = "PASTE_YOUR_CONTRACT_ADDRESS_HERE"; // ← replace this with actual CA
+const SOLES_CA = "Coming Soon..."; // ← replace this with actual CA
 const ADMIN_EMAIL = "admin77@gmail.com"; // ← master admin email — auto-detected on sign-in
 
 // ─── Social Platforms ─────────────────────────────────────────────────────────
@@ -171,7 +171,7 @@ const GlobalStyles = () => (
     .nav{position:sticky;top:0;z-index:100;background:var(--glass);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 24px;height:62px;display:flex;align-items:center;justify-content:space-between;}
     .nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none;}
     .nav-logo-img{height:32px;}
-    .nav-logo-text{font-family:var(--fs);font-size:1.6rem;font-weight:700;color:var(--soil);letter-spacing:.02em;}
+    .nav-logo-text{font-family:var(--fd);font-size:1.6rem;font-weight:700;color:var(--soil);letter-spacing:.02em;}
     .nav-center{display:flex;align-items:center;gap:4px;}
     .nav-link{background:none;border:none;cursor:pointer;font-family:var(--fb);font-size:.76rem;font-weight:500;color:var(--text-muted);padding:6px 12px;border-radius:8px;transition:all .2s;}
     .nav-link:hover{color:var(--soil);background:var(--sand-light);}
@@ -895,7 +895,7 @@ function VerificationRequestSheet({ currentUser, userData, onClose, showToast })
           <>
             <div style={{background:"var(--sand-light)",borderRadius:12,padding:"14px 16px",marginBottom:20}}>
               <div style={{fontSize:".78rem",color:"var(--soil)",lineHeight:1.65}}>
-                <strong>Requirements:</strong> Follow <strong>@SolesBrand</strong> on X and retweet our pinned post · Account must be at least 3 months old · If no X, provide another active social + a selfie holding a paper with <strong>"$SOLES"</strong> written on it
+                <strong>Requirements:</strong> Follow <strong>@welovefeeeeeeet</strong> on X and retweet our pinned post · Account must be at least 3 months old · If no X, provide another active social + a selfie holding a paper with <strong>"$SOLES"</strong> written on it
               </div>
             </div>
 
@@ -912,7 +912,7 @@ function VerificationRequestSheet({ currentUser, userData, onClose, showToast })
               <div className="fg">
                 <label className="fl">Your X Handle</label>
                 <input className="fi" placeholder="@yourusername" value={form.xHandle} onChange={e=>sf("xHandle",e.target.value)} />
-                <div style={{fontSize:".72rem",color:"var(--text-muted)",marginTop:5}}>Make sure you've followed @SolesBrand and retweeted our pinned post</div>
+                <div style={{fontSize:".72rem",color:"var(--text-muted)",marginTop:5}}>Make sure you've followed @welovefeeeeeeet and retweeted our pinned post</div>
               </div>
             ) : (
               <>
@@ -1034,8 +1034,6 @@ function LandingPage({ onAuth, onNavigate, currentUser }) {
         </div>
       </div>
 
-      {/* PASSIVE INCOME SECTION */}
-      <PassiveIncomeSection onAuth={onAuth} />
 
       {/* CREATOR SPOTLIGHT */}
       <div className="spotlight" ref={spotRef}>
