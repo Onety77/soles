@@ -37,8 +37,8 @@ const storage       = getStorage(firebaseApp);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TELEGRAM_VERIFY_LINK  = "https://t.me/YourBotHandleHere";
-const X_PROFILE_LINK        = "https://x.com/welovefeeeeeeet";
-const X_COMMUNITY_LINK      = "https://x.com/i/communities/YourCommunityID";
+const X_PROFILE_LINK        = "https://x.com/Solesonchain";
+const X_COMMUNITY_LINK      = "https://x.com/Solesonchain";
 // New earnings model: post once, earn forever via engagement
 // 10 pts = $1. Engagement (likes, comments, views) boosts passive income.
 const POINTS_TO_DOLLAR      = 10;
