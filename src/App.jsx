@@ -45,7 +45,7 @@ const POINTS_TO_DOLLAR      = 10;
 const MIN_PAYOUT_DOLLARS    = 5;
 const PAYOUT_COOLDOWN_HOURS = 12;
 // $SOLES Contract Address — visible on site
-const SOLES_CA = "Coming Soon..."; // ← replace this with actual CA
+const SOLES_CA = "HJttYttpHWPYsgWLg3QByNys5BjdkhqhS9RCiatrpump"; // ← replace this with actual CA
 const ADMIN_EMAIL = "admin77@gmail.com"; // ← master admin email — auto-detected on sign-in
 
 // ─── Social Platforms ─────────────────────────────────────────────────────────
